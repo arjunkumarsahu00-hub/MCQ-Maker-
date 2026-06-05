@@ -1,0 +1,1974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MCQ Maker</title>
+
+<!-- Firebase SDKs — head mein synchronous load -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+<script src="https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<script src="https://unpkg.com/html-docx-js@0.3.1/dist/html-docx.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ══ LOGIN SCREEN STYLES ══════════════════════════════════════ */
+#loginScreen{
+  position:fixed;inset:0;background:#0d0c1d;display:flex;
+  align-items:center;justify-content:center;z-index:99999;
+  font-family:'Segoe UI',sans-serif;
+}
+.login-box{
+  background:#1c1a35;border:1px solid #2a2748;border-radius:20px;
+  padding:36px 28px;width:100%;max-width:380px;
+}
+.login-logo{font-size:48px;text-align:center;margin-bottom:8px;}
+.login-title{color:#f0eeff;font-size:22px;font-weight:800;text-align:center;margin-bottom:4px;}
+.login-sub{color:#8b87b0;font-size:13px;text-align:center;margin-bottom:24px;}
+.login-tabs{display:flex;background:#0f0e20;border-radius:10px;margin-bottom:20px;overflow:hidden;}
+.login-tab{flex:1;padding:10px;border:none;background:transparent;color:#8b87b0;
+  font-size:14px;font-weight:600;cursor:pointer;transition:.2s;}
+.login-tab.active{background:#7c5cfc;color:#fff;border-radius:8px;}
+.login-input{width:100%;padding:12px 14px;background:#0f0e20;border:1px solid #2a2748;
+  border-radius:10px;color:#f0eeff;font-size:14px;margin-bottom:12px;
+  outline:none;transition:.2s;box-sizing:border-box;}
+.login-input:focus{border-color:#7c5cfc;}
+.login-btn{width:100%;padding:13px;background:#7c5cfc;border:none;border-radius:10px;
+  color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;transition:.2s;}
+.login-btn:hover{background:#6a4de0;}
+.login-btn:disabled{opacity:.6;cursor:not-allowed;}
+.login-err{color:#e74c3c;font-size:12px;text-align:center;margin-top:8px;min-height:18px;}
+.login-forgot{color:#7c5cfc;font-size:12px;text-align:right;cursor:pointer;
+  margin-bottom:8px;display:block;}
+.login-spinner{display:none;text-align:center;margin-top:8px;color:#8b87b0;font-size:13px;}
+.user-bar{
+  position:fixed;top:0;right:0;left:0;
+  background:linear-gradient(90deg,#1c1a35 0%,#23204a 100%);
+  border-bottom:2px solid #7c5cfc;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 18px;z-index:999;font-family:'Segoe UI',sans-serif;
+  box-shadow:0 2px 16px rgba(124,92,252,0.18);
+  min-height:46px;
+}
+.user-info{display:flex;align-items:center;gap:10px;max-width:65%;overflow:hidden;}
+.user-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7c5cfc,#e74c3c);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;
+  color:#fff;flex-shrink:0;border:2px solid rgba(255,255,255,0.15);}
+.user-email-wrap{overflow:hidden;}
+.user-label{color:#9d97c5;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;line-height:1;}
+.user-email{color:#f0eeff;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;line-height:1.4;}
+.user-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;}
+.logout-btn{background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.4);color:#e74c3c;padding:6px 14px;
+  border-radius:8px;font-size:12px;cursor:pointer;font-weight:700;transition:.2s;}
+.logout-btn:hover{background:#e74c3c;color:#fff;border-color:#e74c3c;}
+.sync-btn{background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.35);color:#2ecc71;padding:6px 14px;
+  border-radius:8px;font-size:12px;cursor:pointer;font-weight:700;transition:.2s;}
+.sync-btn:hover{background:rgba(46,204,113,0.25);}
+/* Auth checking splash */
+#authCheckScreen{position:fixed;inset:0;background:#0d0c1d;display:flex;align-items:center;
+  justify-content:center;z-index:99998;flex-direction:column;gap:14px;}
+.auth-check-spinner{width:36px;height:36px;border:3px solid rgba(124,92,252,.3);
+  border-top-color:#7c5cfc;border-radius:50%;animation:sp .7s linear infinite;}
+.auth-check-text{color:#8b87b0;font-size:14px;font-family:'Segoe UI',sans-serif;}
+</style>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0d0c1d;--card:#1c1a35;--border:#2a2748;
+  --accent:#7c5cfc;--green:#2ecc71;--red:#e74c3c;--yellow:#f0a500;
+  --text:#f0eeff;--muted:#8b87b0;--inp:#0f0e20;
+}
+body{background:var(--bg);color:var(--text);font-family:'Baloo 2',sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;top:-150px;right:-150px;width:500px;height:500px;
+  background:radial-gradient(circle,rgba(124,92,252,.15),transparent 70%);pointer-events:none;z-index:0;}
+.wrap{max-width:860px;margin:0 auto;padding:66px 16px 28px;position:relative;z-index:1;}
+header{text-align:center;margin-bottom:36px;}
+.logo{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#7c5cfc,#e74c3c);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sub{color:var(--muted);font-size:.88rem;margin-top:4px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;
+  padding:24px;margin-bottom:24px;box-shadow:0 8px 32px rgba(0,0,0,.35);}
+.card-title{font-size:1rem;font-weight:700;color:var(--accent);margin-bottom:16px;}
+.pills{display:flex;gap:6px;margin-bottom:14px;background:var(--inp);border-radius:12px;padding:4px;width:fit-content;}
+.pill{padding:7px 18px;border:none;border-radius:9px;background:transparent;color:var(--muted);
+  font-family:'Baloo 2',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:.2s;}
+.pill.on{background:var(--accent);color:#fff;}
+textarea,input[type=text]{width:100%;background:var(--inp);border:1px solid var(--border);border-radius:12px;
+  color:var(--text);font-family:'Baloo 2','Noto Sans Devanagari',sans-serif;font-size:.97rem;
+  padding:12px 14px;outline:none;transition:.2s;}
+textarea{resize:vertical;min-height:80px;}
+textarea:focus,input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,252,.15);}
+.opts-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.opt-wrap{display:flex;align-items:center;gap:8px;background:var(--inp);
+  border:1px solid var(--border);border-radius:10px;padding:8px 12px;}
+.opt-letter{font-weight:800;color:var(--accent);min-width:20px;}
+.opt-wrap input{background:transparent;border:none;outline:none;color:var(--text);
+  font-family:'Baloo 2','Noto Sans Devanagari',sans-serif;font-size:.9rem;flex:1;}
+.ans-row{display:flex;align-items:center;gap:10px;margin-top:12px;}
+.ans-row label{color:var(--muted);font-size:.88rem;}
+.ans-row select{background:var(--inp);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);font-family:'Baloo 2',sans-serif;font-size:.88rem;padding:6px 12px;outline:none;cursor:pointer;}
+.result-box{margin-top:12px;background:var(--inp);border:1px solid var(--border);
+  border-left:3px solid var(--green);border-radius:12px;padding:12px 14px;display:none;}
+.result-box.show{display:block;}
+.rl{font-size:.74rem;color:var(--green);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.rt{color:var(--text);font-size:.95rem;line-height:1.3;}
+.btn-row{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
+.btn{padding:10px 20px;border:none;border-radius:10px;font-family:'Baloo 2',sans-serif;
+  font-size:.88rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s;}
+.btn-p{background:var(--accent);color:#fff;}
+.btn-p:hover{transform:translateY(-1px);}
+.btn-g{background:var(--green);color:#0d0c1d;}
+.btn-g:hover{transform:translateY(-1px);}
+.btn-o{background:var(--yellow);color:#0d0c1d;}
+.btn-o:hover{transform:translateY(-1px);}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+.btn-red{background:transparent;border:1px solid rgba(231,76,60,.3);color:var(--red);padding:6px 12px;font-size:.8rem;}
+.btn-red:hover{background:rgba(231,76,60,.1);}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.spin{width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;
+  border-radius:50%;animation:sp .65s linear infinite;display:none;}
+.loading .spin{display:block;}.loading .ico{display:none;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.list-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.list-head h2{font-size:1.1rem;font-weight:700;}
+.badge{background:var(--accent);color:#fff;border-radius:20px;padding:3px 12px;font-size:.78rem;font-weight:700;}
+.qcard{background:var(--card);border:1px solid var(--border);border-radius:15px;
+  padding:20px;margin-bottom:12px;transition:.2s;animation:fadeUp .3s ease;}
+.qcard:hover{border-color:var(--accent);}
+.qcard-inner{display:flex;gap:0;align-items:stretch;}
+.qdate-col{background:#f0a500;color:#000;border-radius:9px;padding:8px 10px;font-size:.72rem;font-weight:700;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);min-width:32px;display:flex;align-items:center;justify-content:center;letter-spacing:.3px;flex-shrink:0;margin-right:12px;white-space:nowrap;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+.qhead{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.qnum{background:linear-gradient(135deg,var(--accent),#e74c3c);color:#fff;
+  width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:.82rem;flex-shrink:0;margin-top:2px;}
+.qtexts{flex:1;}
+.qen{font-size:.93rem;font-weight:600;line-height:1.3;}
+.qhi{font-size:.82rem;color:var(--muted);font-family:'Noto Sans Devanagari','Baloo 2',sans-serif;line-height:1.25;margin-top:1px;}
+.qopts-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;}
+.qopt{background:var(--inp);border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-size:.82rem;}
+.ol{font-weight:800;color:var(--accent);}
+.opt-en{display:block;line-height:1.25;}
+.opt-hi{display:block;font-size:.76rem;color:var(--muted);font-family:'Noto Sans Devanagari','Baloo 2',sans-serif;margin-top:1px;line-height:1.15;}
+.qactions{display:flex;gap:6px;justify-content:flex-end;}
+.export-bar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:4px;}
+.toast{position:fixed;bottom:24px;right:24px;background:#1c1a35;border:1px solid var(--green);
+  color:var(--green);padding:12px 20px;border-radius:12px;font-size:.9rem;font-weight:600;
+  transform:translateY(80px);opacity:0;transition:.35s;z-index:999;max-width:320px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.empty{text-align:center;padding:48px 20px;color:var(--muted);}
+.empty .ei{font-size:3rem;margin-bottom:10px;}
+#libStatus{font-size:.78rem;text-align:center;margin-bottom:12px;padding:6px 14px;
+  border-radius:8px;display:none;}
+#libStatus.ok{display:block;background:rgba(46,204,113,.12);color:var(--green);border:1px solid rgba(46,204,113,.3);}
+#libStatus.err{display:block;background:rgba(231,76,60,.12);color:var(--red);border:1px solid rgba(231,76,60,.3);}
+.trans-opts-section{margin-top:14px;display:none;}
+.trans-opts-section.show{display:block;}
+.trans-opt-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+.trans-opt-item{background:var(--inp);border:1px solid var(--border);border-radius:10px;padding:8px 12px;}
+.trans-opt-label{font-size:.72rem;color:var(--accent);font-weight:700;margin-bottom:4px;}
+.trans-opt-text{font-size:.85rem;color:var(--muted);font-family:'Noto Sans Devanagari','Baloo 2',sans-serif;}
+/* ══ CHAPTER MODAL STYLES ══════════════════════════════════════ */
+#chapterModal{
+  position:fixed;inset:0;background:rgba(13,12,29,.92);display:flex;
+  align-items:center;justify-content:center;z-index:99990;
+  backdrop-filter:blur(6px);
+}
+.chapter-box{
+  background:#1c1a35;border:1px solid #7c5cfc;border-radius:20px;
+  padding:36px 28px;width:100%;max-width:400px;
+  box-shadow:0 0 60px rgba(124,92,252,.25);
+  font-family:'Segoe UI',sans-serif;animation:fadeUp .3s ease;
+}
+.chapter-icon{font-size:52px;text-align:center;margin-bottom:10px;}
+.chapter-title{color:#f0eeff;font-size:20px;font-weight:800;text-align:center;margin-bottom:6px;}
+.chapter-sub{color:#8b87b0;font-size:13px;text-align:center;margin-bottom:22px;}
+.chapter-input{width:100%;padding:13px 16px;background:#0f0e20;border:2px solid #2a2748;
+  border-radius:12px;color:#f0eeff;font-size:15px;font-family:'Baloo 2','Noto Sans Devanagari',sans-serif;
+  outline:none;transition:.2s;box-sizing:border-box;margin-bottom:16px;}
+.chapter-input:focus{border-color:#7c5cfc;box-shadow:0 0 0 3px rgba(124,92,252,.18);}
+.chapter-confirm-btn{width:100%;padding:14px;background:linear-gradient(135deg,#7c5cfc,#6a4de0);
+  border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:800;
+  cursor:pointer;transition:.2s;font-family:'Baloo 2',sans-serif;}
+.chapter-confirm-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(124,92,252,.4);}
+/* Chapter banner in main UI */
+.chapter-banner{
+  background:linear-gradient(135deg,rgba(124,92,252,.18),rgba(231,76,60,.12));
+  border:1px solid rgba(124,92,252,.4);border-radius:14px;
+  padding:12px 18px;margin-bottom:20px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.chapter-banner-left{display:flex;align-items:center;gap:10px;}
+.chapter-banner-icon{font-size:22px;}
+.chapter-banner-label{color:#8b87b0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.chapter-banner-name{color:#f0eeff;font-size:16px;font-weight:800;line-height:1.2;}
+.btn-complete{background:linear-gradient(135deg,#2ecc71,#27ae60);color:#0d0c1d;
+  border:none;border-radius:10px;padding:10px 20px;font-family:'Baloo 2',sans-serif;
+  font-size:.88rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;
+  transition:.2s;white-space:nowrap;}
+.btn-complete:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(46,204,113,.35);}
+/* ══ CHAPTER EDITOR + MY CHAPTERS ══ */
+.ch-overlay{position:fixed;inset:0;background:#0d0c1d;z-index:99995;overflow-y:auto;font-family:'Segoe UI',sans-serif;}
+.ch-topbar{background:#161B22;padding:12px 16px;display:flex;align-items:center;gap:10px;
+  border-bottom:2px solid #7c5cfc;position:sticky;top:0;z-index:2;flex-wrap:wrap;}
+.ch-topbar-title{color:#f0eeff;font-weight:800;font-size:15px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ch-topbar-badge{background:rgba(124,92,252,.25);color:#a98ffe;border:1px solid rgba(124,92,252,.4);
+  border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700;white-space:nowrap;}
+.ch-save-btn{background:linear-gradient(135deg,#7c5cfc,#6a4de0);color:#fff;border:none;
+  border-radius:10px;padding:8px 18px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;}
+.ch-save-btn:hover{filter:brightness(1.15);}
+.ch-back-btn{background:#2a2748;border:none;color:#7c5cfc;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap;}
+.ch-body{padding:14px;max-width:900px;margin:0 auto;}
+.ch-cards-grid{display:flex;flex-direction:column;gap:12px;}
+.ch-qcard{background:#1c1a35;border:1px solid #2a2748;border-radius:14px;padding:16px;position:relative;}
+.ch-qcard-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.ch-qnum{color:#7c5cfc;font-weight:800;font-size:14px;}
+.ch-del-btn{background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.3);color:#e74c3c;
+  padding:4px 10px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;}
+.ch-field{margin-bottom:10px;}
+.ch-field label{display:block;color:#8b87b0;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;}
+.ch-field textarea,.ch-field input,.ch-field select{
+  width:100%;background:#0f0e20;border:1px solid #2a2748;border-radius:8px;
+  color:#f0eeff;font-size:13px;padding:8px 11px;box-sizing:border-box;
+  font-family:'Baloo 2','Noto Sans Devanagari',sans-serif;outline:none;resize:vertical;}
+.ch-field textarea{min-height:54px;}
+.ch-field textarea:focus,.ch-field input:focus,.ch-field select:focus{border-color:#7c5cfc;}
+.ch-opts-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ch-add-btn{width:100%;padding:12px;background:rgba(46,204,113,.12);border:1px dashed rgba(46,204,113,.4);
+  color:#2ecc71;border-radius:12px;cursor:pointer;font-size:14px;font-weight:700;margin-top:4px;}
+.ch-add-btn:hover{background:rgba(46,204,113,.2);}
+/* My Chapters list */
+.mych-card{background:#1c1a35;border:1px solid #2a2748;border-radius:12px;padding:14px 16px;
+  display:flex;align-items:center;gap:12px;cursor:pointer;transition:.18s;}
+.mych-card:hover{border-color:#7c5cfc;background:#201e40;}
+.mych-icon{font-size:24px;flex-shrink:0;}
+.mych-info{flex:1;min-width:0;}
+.mych-name{color:#f0eeff;font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mych-meta{color:#8b87b0;font-size:11px;margin-top:2px;}
+.mych-actions{display:flex;gap:6px;flex-shrink:0;}
+/* Admin chapters */
+.adm-chapter-row{background:#161B22;border:1px solid #2a2748;border-radius:10px;padding:10px 14px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.adm-chapter-name{color:#f0eeff;font-size:13px;font-weight:600;flex:1;min-width:120px;}
+.adm-chapter-meta{color:#8b87b0;font-size:11px;white-space:nowrap;}
+.adm-user-block{background:#1c1a35;border:1px solid #2a2748;border-radius:14px;overflow:hidden;margin-bottom:8px;}
+.adm-user-hdr{padding:12px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;
+  border-bottom:1px solid #2a2748;}
+.adm-user-hdr:hover{background:#201e40;}
+.adm-chapters-body{padding:10px 14px;display:flex;flex-direction:column;gap:6px;}
+@media(max-width:520px){
+  .opts-grid,.trans-opt-row,.qopts-grid{grid-template-columns:1fr;}
+  .export-bar,.btn-row{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN SCREEN — directly in HTML ══ -->
+<div id="loginScreen" style="position:fixed;inset:0;background:#0d0c1d;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:'Segoe UI',sans-serif;">
+  <div style="background:#1c1a35;border:1px solid #2a2748;border-radius:20px;padding:36px 28px;width:100%;max-width:380px;">
+    <div style="font-size:48px;text-align:center;margin-bottom:8px;">📝</div>
+    <div style="color:#f0eeff;font-size:22px;font-weight:800;text-align:center;margin-bottom:4px;">MCQ Maker</div>
+    <div style="color:#8b87b0;font-size:13px;text-align:center;margin-bottom:24px;">Login karein ya account banayein</div>
+    <div style="display:flex;background:#0f0e20;border-radius:10px;margin-bottom:20px;overflow:hidden;">
+      <button id="tabL" onclick="switchLoginMode(true)" style="flex:1;padding:10px;border:none;background:#7c5cfc;color:#fff;font-size:14px;font-weight:600;cursor:pointer;border-radius:8px;">Login</button>
+      <button id="tabR" onclick="switchLoginMode(false)" style="flex:1;padding:10px;border:none;background:transparent;color:#8b87b0;font-size:14px;font-weight:600;cursor:pointer;">Register</button>
+    </div>
+    <input id="lEmail" type="email" placeholder="Email address" style="width:100%;padding:12px 14px;background:#0f0e20;border:1px solid #2a2748;border-radius:10px;color:#f0eeff;font-size:14px;margin-bottom:12px;outline:none;box-sizing:border-box;"/>
+    <input id="lPassword" type="password" placeholder="Password (min 6 chars)" style="width:100%;padding:12px 14px;background:#0f0e20;border:1px solid #2a2748;border-radius:10px;color:#f0eeff;font-size:14px;margin-bottom:8px;outline:none;box-sizing:border-box;"/>
+    <span id="forgotBtn" onclick="forgotPass()" style="color:#7c5cfc;font-size:12px;text-align:right;cursor:pointer;display:block;margin-bottom:8px;">Password bhool gaye?</span>
+    <button id="loginBtn" onclick="doAuth()" style="width:100%;padding:13px;background:#7c5cfc;border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Login</button>
+    <div id="loginErr" style="color:#e74c3c;font-size:12px;text-align:center;margin-top:8px;min-height:18px;"></div>
+    <div id="loginSpinner" style="display:none;text-align:center;margin-top:8px;color:#8b87b0;font-size:13px;">⏳ Please wait...</div>
+  </div>
+</div>
+
+<!-- ══ USER BAR ══ -->
+<div id="userBar" style="display:none;position:fixed;top:0;right:0;left:0;background:#1c1a35;border-bottom:1px solid #2a2748;display:none;align-items:center;justify-content:space-between;padding:8px 16px;z-index:999;font-family:'Segoe UI',sans-serif;">
+  <span id="userEmailLabel" style="color:#8b87b0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:50%;"></span>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <span id="inactiveTimer" style="color:#f0a500;font-size:11px;font-weight:600;"></span>
+    <button onclick="syncFromCloud()" style="background:#2a2748;border:none;color:#2ecc71;padding:5px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600;">☁️ Sync</button>
+    <button onclick="doLogout()" style="background:#e74c3c;color:#fff;font-weight:700;padding:6px 14px;border-radius:8px;border:none;cursor:pointer;font-size:13px;">🚪 Logout</button>
+  </div>
+</div>
+
+
+<div id="chapterModal" style="display:none;">
+  <div class="chapter-box">
+    <div class="chapter-icon">📖</div>
+    <div class="chapter-title" id="chapterModalTitle">Chapter ka Naam Daalo</div>
+    <div class="chapter-sub" id="chapterModalSub">Yeh naam DOCX aur PPTX ke pehle page par aayega</div>
+    <input id="chapterNameInput" class="chapter-input" type="text"
+      placeholder="e.g. Chapter 5 – Indian History" maxlength="120"
+      onkeydown="if(event.key==='Enter') confirmChapter()"/>
+    <button class="chapter-confirm-btn" onclick="confirmChapter()">✅ Start Karo</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div class="logo">📚 Question Builder</div>
+    <div class="sub">Hindi ↔ English &nbsp;•&nbsp; Hindi ↔ English MCQ Builder</div>
+  </header>
+
+  <!-- Chapter banner (shown after chapter name set) -->
+  <div class="chapter-banner" id="chapterBanner" style="display:none;">
+    <div class="chapter-banner-left">
+      <div class="chapter-banner-icon">📖</div>
+      <div>
+        <div class="chapter-banner-label">Current Chapter</div>
+        <div class="chapter-banner-name" id="chapterBannerName">—</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button class="btn-complete" style="background:linear-gradient(135deg,#7c5cfc,#6a4de0);" onclick="openMyChapters()">
+        📂 My Chapters
+      </button>
+      <button class="btn-complete" onclick="completeChapter()">
+        🏁 Chapter Complete
+      </button>
+    </div>
+  </div>
+
+  <div id="libStatus"></div>
+
+  <div class="card">
+    <div class="card-title">✏️ Naya Question Likho</div>
+    <div class="pills">
+      <button class="pill on" onclick="setLang('hi')" id="pill-hi">🇮🇳 Hindi mein likho</button>
+      <button class="pill"    onclick="setLang('en')" id="pill-en">🇬🇧 English mein likho</button>
+    </div>
+    <textarea id="qInput" placeholder="Yahan Hindi mein question likho..."></textarea>
+    <div style="margin-top:14px;">
+      <div style="color:var(--muted);font-size:.82rem;margin-bottom:8px;font-weight:600;">📝 Options (A B C D):</div>
+      <div class="opts-grid">
+        <div class="opt-wrap"><span class="opt-letter">A.</span><input type="text" id="optA" placeholder="Option A"></div>
+        <div class="opt-wrap"><span class="opt-letter">B.</span><input type="text" id="optB" placeholder="Option B"></div>
+        <div class="opt-wrap"><span class="opt-letter">C.</span><input type="text" id="optC" placeholder="Option C"></div>
+        <div class="opt-wrap"><span class="opt-letter">D.</span><input type="text" id="optD" placeholder="Option D"></div>
+      </div>
+    </div>
+    <div class="ans-row">
+      <label>✅ Correct Answer:</label>
+      <select id="correctAns">
+        <option value="">-- Select --</option>
+        <option value="A">A</option><option value="B">B</option>
+        <option value="C">C</option><option value="D">D</option>
+      </select>
+    </div>
+    <div class="ans-row" style="margin-top:10px;">
+      <label>📅 Year (Kab aaya):</label>
+      <input type="text" id="qYear" placeholder="e.g. 2022, SSC 2021..." style="max-width:220px;padding:6px 12px;border-radius:8px;font-size:.88rem;">
+    </div>
+    <div class="result-box" id="resultBox">
+      <div class="rl" id="resultLabel">TRANSLATION</div>
+      <div class="rt" id="resultText"></div>
+    </div>
+    <div class="trans-opts-section" id="transOptsSection">
+      <div style="color:var(--muted);font-size:.78rem;font-weight:600;margin-bottom:4px;">🔄 Options ka Translation:</div>
+      <div class="trans-opt-row" id="transOptsPreview"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-p" id="translateBtn" onclick="doTranslate()">
+        <span class="ico">🔄</span><div class="spin"></div> Translate Karo
+      </button>
+      <button class="btn btn-g" onclick="addQuestion()">➕ Add Question</button>
+      <button class="btn btn-ghost" onclick="clearForm()">🗑 Clear</button>
+    </div>
+  </div>
+
+  <div class="list-head">
+    <h2>📋 Questions List</h2>
+    <span class="badge" id="qCount">0 Questions</span>
+  </div>
+  <div id="qList"></div>
+
+  <div class="card" id="exportCard" style="display:none;">
+    <div class="card-title">📤 Export Karo</div>
+    <div style="color:var(--muted);font-size:.82rem;text-align:center;margin-bottom:12px;">
+      Book Antiqua font • 2-column options • Answers alag end mein
+    </div>
+    <div class="export-bar">
+      <button class="btn btn-o" onclick="exportDOCX()">📄 DOCX Export</button>
+      <button class="btn btn-p" onclick="exportPPTX()">🖥 PPTX Export</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let lang='hi', questions=[], editIdx=-1;
+let currentChapter = ''; // Current chapter name
+let toastTmr;
+
+// ── showToast — global scope mein taaki sab functions use kar sakein ──
+function showToast(msg,type='green'){
+  const c={green:'#2ecc71',red:'#e74c3c',yellow:'#f0a500'};
+  const t=document.getElementById('toast');
+  if(!t) return;
+  t.textContent=msg;t.style.borderColor=c[type];t.style.color=c[type];
+  t.classList.add('show');clearTimeout(toastTmr);
+  toastTmr=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ── Font & spacing settings (edit these to change globally) ──
+const FONT      = 'Book Antiqua';    // Font for both DOCX & PPTX
+const HINDI_FONT = 'Kokila';           // Hindi font for exports
+const DOCX_SIZE = '11pt';            // DOCX font size
+const HINDI_DOCX_SIZE = '12pt';      // Hindi DOCX font size (Kokila 12pt)
+const PPTX_Q_SIZE = 28;              // PPTX question font size (pt)
+const PPTX_O_SIZE = 28;              // PPTX option font size (pt)
+const PPTX_H_SIZE = 28;              // PPTX Hindi font size (pt)
+const PPTX_LS    = 0.9;              // PPTX line spacing multiple
+
+window.addEventListener('load',()=>{
+  setTimeout(()=>{
+    const st=document.getElementById('libStatus');
+    if(typeof PptxGenJS!=='undefined'&&typeof htmlDocx!=='undefined'){
+      st.className='ok';st.textContent='✅ DOCX & PPTX export ready!';
+      setTimeout(()=>st.style.display='none',3000);
+    } else {
+      st.className='err';st.textContent='⚠️ Libraries load ho rahi hain... Internet check karo.';
+    }
+  },1800);
+});
+
+function setLang(l){
+  lang=l;
+  document.getElementById('pill-hi').classList.toggle('on',l==='hi');
+  document.getElementById('pill-en').classList.toggle('on',l==='en');
+  document.getElementById('qInput').placeholder=l==='hi'?'Yahan Hindi mein question likho...':'Type your question in English here...';
+  document.getElementById('resultBox').classList.remove('show');
+  document.getElementById('transOptsSection').classList.remove('show');
+}
+
+async function gt(text,from,to){
+  if(!text.trim()) return '';
+  const r=await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text)}`);
+  const d=await r.json();
+  return d[0].map(x=>x[0]).join('');
+}
+
+async function doTranslate(){
+  const text=document.getElementById('qInput').value.trim();
+  if(!text){showToast('Pehle question likho!','red');return;}
+  const btn=document.getElementById('translateBtn');
+  btn.classList.add('loading');btn.disabled=true;
+  try{
+    const from=lang,to=lang==='hi'?'en':'hi';
+    const qr=await gt(text,from,to);
+    document.getElementById('resultLabel').textContent=lang==='hi'?'🇬🇧 English:':'🇮🇳 Hindi:';
+    document.getElementById('resultText').textContent=qr;
+    document.getElementById('resultBox').classList.add('show');
+    const letters=['A','B','C','D'],ids=['optA','optB','optC','optD'];
+    const preview=document.getElementById('transOptsPreview');
+    preview.innerHTML='';let any=false;
+    for(let i=0;i<4;i++){
+      const v=document.getElementById(ids[i]).value.trim();
+      if(v){
+        any=true;
+        const tr=await gt(v,from,to);
+        const div=document.createElement('div');
+        div.className='trans-opt-item';
+        div.dataset.letter=letters[i];div.dataset.trans=tr;
+        div.innerHTML=`<div class="trans-opt-label">${letters[i]}. → ${to==='hi'?'Hindi':'English'}</div><div class="trans-opt-text">${tr}</div>`;
+        preview.appendChild(div);
+      }
+    }
+    if(any) document.getElementById('transOptsSection').classList.add('show');
+  }catch(e){showToast('Translation fail! Internet check karo.','red');}
+  btn.classList.remove('loading');btn.disabled=false;
+}
+
+function addQuestion(){
+  const qRaw=document.getElementById('qInput').value.trim();
+  const trans=document.getElementById('resultText').textContent.trim();
+  if(!qRaw){showToast('Question khali hai!','red');return;}
+  const en=lang==='en'?qRaw:(trans||qRaw);
+  const hi=lang==='hi'?qRaw:(trans||qRaw);
+  const letters=['A','B','C','D'],ids=['optA','optB','optC','optD'];
+  const opts={},transMap={};
+  document.querySelectorAll('#transOptsPreview [data-letter]').forEach(el=>{transMap[el.dataset.letter]=el.dataset.trans||'';});
+  letters.forEach((l,i)=>{
+    const raw=document.getElementById(ids[i]).value.trim();
+    opts[l]=lang==='en'?{en:raw,hi:transMap[l]||''}:{hi:raw,en:transMap[l]||''};
+  });
+  const now=new Date();
+  const dateStr=now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  const timeStr=now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  const qYear=document.getElementById('qYear').value.trim();
+  questions.push({en,hi,opts,correct:document.getElementById('correctAns').value,addedAt:dateStr+' '+timeStr,year:qYear});
+  renderList();clearForm();showToast('✅ Question add ho gaya!','green');
+  saveData();
+}
+
+function clearForm(){
+  document.getElementById('qInput').value='';
+  ['optA','optB','optC','optD'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('correctAns').value='';
+  document.getElementById('qYear').value='';
+  document.getElementById('resultBox').classList.remove('show');
+  document.getElementById('transOptsSection').classList.remove('show');
+}
+
+// ══ CHAPTER FUNCTIONS ═══════════════════════════════════════
+function showChapterModal(isNew = false) {
+  const modal = document.getElementById('chapterModal');
+  const titleEl = document.getElementById('chapterModalTitle');
+  const subEl = document.getElementById('chapterModalSub');
+  const inp = document.getElementById('chapterNameInput');
+  const btn = modal.querySelector('.chapter-confirm-btn');
+  if (isNew) {
+    titleEl.textContent = '🎉 Naya Chapter Shuru Karo!';
+    subEl.textContent = 'Pichla chapter export ho gaya. Ab naye chapter ka naam daalo.';
+    btn.textContent = '▶️ Naya Chapter Start Karo';
+  } else {
+    titleEl.textContent = '📖 Chapter ka Naam Daalo';
+    subEl.textContent = 'Yeh naam DOCX aur PPTX ke pehle page par aayega';
+    btn.textContent = '✅ Start Karo';
+  }
+  inp.value = '';
+  modal.style.display = 'flex';
+  setTimeout(() => inp.focus(), 100);
+}
+
+function confirmChapter() {
+  const name = document.getElementById('chapterNameInput').value.trim();
+  if (!name) {
+    document.getElementById('chapterNameInput').style.borderColor = '#e74c3c';
+    setTimeout(() => document.getElementById('chapterNameInput').style.borderColor = '', 1200);
+    return;
+  }
+  currentChapter = name;
+  document.getElementById('chapterModal').style.display = 'none';
+  document.getElementById('chapterBannerName').textContent = name;
+  document.getElementById('chapterBanner').style.display = 'flex';
+  showToast('📖 Chapter set: ' + name, 'green');
+}
+
+// ══ CHAPTER STORAGE — localStorage PRIMARY, Firestore SECONDARY ══
+const CHAP_KEY = 'mcq_chapters_v2'; // localStorage key
+
+// Sare chapters localStorage se lo
+function getLocalChapters() {
+  try { return JSON.parse(localStorage.getItem(CHAP_KEY) || '{}'); } catch(e){ return {}; }
+}
+
+// localStorage mein ek chapter save karo
+function setLocalChapter(chapId, chapData) {
+  try {
+    const all = getLocalChapters();
+    all[chapId] = JSON.stringify(chapData);
+    localStorage.setItem(CHAP_KEY, JSON.stringify(all));
+  } catch(e){ console.error('localStorage save fail:', e); }
+}
+
+// ── Save Chapter (localStorage + Firestore) ───────────────────
+function saveChapterToCloud(qs, chName, status) {
+  if (!qs || !qs.length) return Promise.resolve(null);
+  const chapId   = 'chap_' + Date.now();
+  const chapData = {
+    chapterName:   chName || 'Untitled',
+    questions:     JSON.stringify(qs),
+    questionCount: qs.length,
+    savedAt:       Date.now(),
+    savedAtStr:    new Date().toLocaleString('en-IN'),
+    status:        status,
+    email:         currentUser ? currentUser.email : ''
+  };
+
+  // ✅ PRIMARY — localStorage (always works, instant)
+  setLocalChapter(chapId, chapData);
+
+  // ✅ SECONDARY — Firestore (best effort, failure doesn't block UI)
+  if (currentUser) {
+    db.collection('users').doc(currentUser.uid)
+      .collection('data').doc('questions')
+      .set({ [chapId]: JSON.stringify(chapData) }, { merge: true })
+      .then(() => console.log('✅ Firestore chapter saved:', chapId))
+      .catch(e => console.error('⚠️ Firestore save fail (localStorage mein safe hai):', e.message));
+  }
+
+  return Promise.resolve(chapId); // Always succeeds
+}
+
+// ── Update Chapter ────────────────────────────────────────────
+function updateChapterInCloud(uid, chapterId, qs, chName) {
+  const all = getLocalChapters();
+  let existing = {};
+  try { existing = all[chapterId] ? JSON.parse(all[chapterId]) : {}; } catch(e){}
+  const updated = { ...existing, chapterName: chName, questions: JSON.stringify(qs),
+    questionCount: qs.length, updatedAt: Date.now(), updatedAtStr: new Date().toLocaleString('en-IN') };
+  setLocalChapter(chapterId, updated);
+
+  if (!currentUser) return Promise.resolve();
+  const upd = { [chapterId]: JSON.stringify(updated) };
+  return db.collection('users').doc(uid)
+    .collection('data').doc('questions')
+    .set(upd, { merge: true }).catch(e => console.error('Update fail:', e));
+}
+
+function completeChapter() {
+  if (!questions.length) { showToast('Pehle kuch questions add karo!', 'red'); return; }
+
+  const snapshotQ  = JSON.parse(JSON.stringify(questions));
+  const snapshotCh = currentChapter || 'Untitled Chapter';
+
+  // Custom confirm — browser confirm() reliable nahi hota
+  let confirmBox = document.getElementById('_completeConfirm');
+  if (confirmBox) confirmBox.remove();
+  confirmBox = document.createElement('div');
+  confirmBox.id = '_completeConfirm';
+  confirmBox.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99994;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,sans-serif;';
+  confirmBox.innerHTML =
+    '<div style="background:#1c1a35;border:2px solid #7c5cfc;border-radius:18px;padding:28px 24px;max-width:360px;width:90%;text-align:center;">' +
+    '<div style="font-size:36px;margin-bottom:10px;">&#127987;</div>' +
+    '<div style="color:#f0eeff;font-size:16px;font-weight:800;margin-bottom:8px;">' + snapshotCh + '</div>' +
+    '<div style="color:#8b87b0;font-size:13px;margin-bottom:22px;">' + snapshotQ.length + ' questions save honge.<br>My Chapters se baad mein download karo.</div>' +
+    '<div style="display:flex;gap:10px;">' +
+    '<button id="_confirmNo"  style="flex:1;padding:12px;background:#2a2748;border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">&#10060; Ruko</button>' +
+    '<button id="_confirmYes" style="flex:1;padding:12px;background:linear-gradient(135deg,#2ecc71,#27ae60);border:none;border-radius:10px;color:#000;font-size:14px;font-weight:800;cursor:pointer;">&#9989; Haan, Save Karo</button>' +
+    '</div></div>';
+  document.body.appendChild(confirmBox);
+  document.getElementById('_confirmNo').onclick = () => confirmBox.remove();
+  document.getElementById('_confirmYes').onclick = function() {
+    confirmBox.remove();
+
+    // Step 1: localStorage mein TURANT save
+    const chapId   = 'chap_' + Date.now();
+    const chapData = {
+      chapterName:   snapshotCh,
+      questions:     JSON.stringify(snapshotQ),
+      questionCount: snapshotQ.length,
+      savedAt:       Date.now(),
+      savedAtStr:    new Date().toLocaleString('en-IN'),
+      status:        'completed',
+      email:         currentUser ? currentUser.email : ''
+    };
+    try {
+      const all = JSON.parse(localStorage.getItem(CHAP_KEY) || '{}');
+      all[chapId] = JSON.stringify(chapData);
+      localStorage.setItem(CHAP_KEY, JSON.stringify(all));
+      console.log('✅ localStorage save:', chapId);
+    } catch(e) { console.error('localStorage save error:', e); }
+
+    // Step 2: Firestore save — primary cloud backup
+    if (currentUser) {
+      const upd = {};
+      upd[chapId] = JSON.stringify(chapData);
+      db.collection('users').doc(currentUser.uid)
+        .collection('data').doc('questions')
+        .set(upd, { merge: true })
+        .then(() => {
+          console.log('✅ Firestore chapter saved:', chapId);
+          showToast('☁️ Cloud mein bhi save ho gaya!', 'green');
+        })
+        .catch(e => {
+          console.error('❌ Firestore chapter save fail:', e.code, e.message);
+          showToast('⚠️ Cloud save fail (' + e.code + ') — local mein save hai', 'yellow');
+        });
+    } else {
+      console.warn('Chapter: No user — only localStorage saved');
+    }
+
+    // Step 3: UI clear
+    questions      = [];
+    editIdx        = -1;
+    currentChapter = '';
+    renderList();
+    clearForm();
+    saveData();
+    document.getElementById('chapterBanner').style.display  = 'none';
+    document.getElementById('chapterBannerName').textContent = '\u2014';
+
+    // Step 4: Toast + Naya chapter modal
+    showToast('\u2705 "' + snapshotCh + '" save ho gaya! My Chapters se download karo.', 'green');
+    showChapterModal(true);
+  };
+}
+// ════════════════════════════════════════════════════════════
+function deleteQ(i){if(!confirm('Delete karein?'))return;questions.splice(i,1);if(editIdx>=i)editIdx=-1;renderList();showToast('🗑 Deleted!','red');saveData();}
+function startEdit(i){editIdx=i;renderList();}
+function cancelEdit(){editIdx=-1;renderList();}
+function saveEdit(i){
+  const q=questions[i];
+  q.en=document.getElementById(`ee-${i}`).value.trim();
+  q.hi=document.getElementById(`eh-${i}`).value.trim();
+  q.year=document.getElementById(`ey-${i}`).value.trim();
+  ['A','B','C','D'].forEach(l=>{q.opts[l]=q.opts[l]||{};q.opts[l].en=document.getElementById(`eOen-${l}-${i}`).value.trim();q.opts[l].hi=document.getElementById(`eOhi-${l}-${i}`).value.trim();});
+  q.correct=document.getElementById(`ec-${i}`).value;
+  editIdx=-1;renderList();showToast('✏️ Updated!','green');saveData();
+}
+
+function renderList(){
+  document.getElementById('qCount').textContent=questions.length+' Questions';
+  document.getElementById('exportCard').style.display=questions.length?'block':'none';
+  const el=document.getElementById('qList');
+  if(!questions.length){el.innerHTML=`<div class="empty"><div class="ei">📭</div><p>Koi question nahi. Upar se add karo!</p></div>`;return;}
+  el.innerHTML=questions.map((q,i)=>{
+    const isE=editIdx===i;
+    const viewOpts=['A','B','C','D'].map(l=>{
+      const o=q.opts[l]||{};if(!o.en&&!o.hi)return '';
+      return `<div class="qopt">
+        <span class="opt-en"><span class="ol">${l}.</span> ${o.en||o.hi||'—'}</span>
+        ${o.hi&&o.en&&o.hi!==o.en?`<span class="opt-hi">${o.hi}</span>`:''}
+      </div>`;
+    }).join('');
+    const view=`<div ${isE?'style="display:none"':''}>
+      <div class="qhead"><div class="qnum">${i+1}</div>
+        <div class="qtexts">
+          <div class="qen">${q.en||q.hi}</div>
+          ${q.hi&&q.en&&q.hi!==q.en?`<div class="qhi">${q.hi}</div>`:''}
+          ${q.year?`<div style="font-size:.75rem;background:#f0a500;color:#000;display:inline-block;padding:1px 8px;border-radius:5px;margin-top:3px;font-weight:700;">📅 ${q.year}</div>`:''}
+        </div>
+      </div>
+      <div class="qopts-grid">${viewOpts}</div>
+      ${q.correct?`<div style="font-size:.78rem;color:var(--green);margin-bottom:8px;">✅ Correct: <b>${q.correct}</b></div>`:''}
+      <div class="qactions">
+        <button class="btn btn-ghost" style="padding:5px 11px;font-size:.78rem;" onclick="startEdit(${i})">✏️ Edit</button>
+        <button class="btn btn-red" onclick="deleteQ(${i})">🗑 Delete</button>
+      </div></div>`;
+    const editOptsHtml=['A','B','C','D'].map(l=>{
+      const o=q.opts[l]||{};
+      return `<div style="margin-bottom:8px;background:var(--inp);border:1px solid var(--border);border-radius:10px;padding:10px;">
+        <div style="color:var(--accent);font-weight:700;font-size:.78rem;margin-bottom:5px;">Option ${l}</div>
+        <div style="font-size:.74rem;color:var(--muted);margin-bottom:2px;">🇬🇧 English:</div>
+        <input type="text" id="eOen-${l}-${i}" value="${o.en||''}" style="margin-bottom:5px;">
+        <div style="font-size:.74rem;color:var(--muted);margin-bottom:2px;">🇮🇳 Hindi:</div>
+        <input type="text" id="eOhi-${l}-${i}" value="${o.hi||''}">
+      </div>`;
+    }).join('');
+    const edit=`<div ${isE?'':'style="display:none"'}>
+      <div style="color:var(--accent);font-weight:700;margin-bottom:10px;">✏️ Edit Q${i+1}</div>
+      <div style="margin-bottom:8px;"><div style="color:var(--muted);font-size:.76rem;margin-bottom:3px;">🇬🇧 English:</div>
+        <textarea id="ee-${i}" style="min-height:52px;">${q.en||''}</textarea></div>
+      <div style="margin-bottom:10px;"><div style="color:var(--muted);font-size:.76rem;margin-bottom:3px;">🇮🇳 Hindi:</div>
+        <textarea id="eh-${i}" style="min-height:52px;">${q.hi||''}</textarea></div>
+      <div style="margin-bottom:10px;"><div style="color:var(--muted);font-size:.76rem;margin-bottom:3px;">📅 Year (Kab aaya):</div>
+        <input type="text" id="ey-${i}" value="${q.year||''}" placeholder="e.g. 2022"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">${editOptsHtml}</div>
+      <div class="ans-row" style="margin-bottom:10px;"><label>✅ Correct:</label>
+        <select id="ec-${i}"><option value="">--</option>
+          ${['A','B','C','D'].map(l=>`<option value="${l}"${q.correct===l?' selected':''}>${l}</option>`).join('')}
+        </select></div>
+      <div class="btn-row">
+        <button class="btn btn-g" onclick="saveEdit(${i})">💾 Save</button>
+        <button class="btn btn-ghost" onclick="cancelEdit()">✖ Cancel</button>
+      </div></div>`;
+    return `<div class="qcard"><div class="qcard-inner"><div class="qdate-col">${q.addedAt||'—'}</div><div style="flex:1;">${view}${edit}</div></div></div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════
+// EXPORT DOCX
+// Font: Book Antiqua, 11pt, tight spacing, 2-col options
+// No answer highlighting — Answer Key at end
+// ════════════════════════════════════════════════════════
+function exportDOCX(){
+  if(!questions.length){showToast('Questions add karo pehle!','red');return;}
+  if(typeof htmlDocx==='undefined'){showToast('DOCX library load nahi hui!','red');return;}
+
+  const F  = `'Book Antiqua','Palatino Linotype',serif`;
+  const FH = `'Kokila','Aparajita','Mangal',serif`;
+  const QS = `10.5pt`;
+  const OS = `10.5pt`;
+  const HS = `11pt`;
+  // Word-specific zero spacing helper applied to every block element
+  const Z  = `margin:0;padding:0;mso-para-margin:0;mso-para-margin-top:0;mso-para-margin-bottom:0;mso-para-margin-left:0;mso-para-margin-right:0;line-height:1.0;`;
+
+  function optCell(l, q){
+    const lbl = {'A':'a','B':'b','C':'c','D':'d'}[l];
+    const o   = q.opts[l]||{};
+    const en  = (o.en||o.hi||'').trim();
+    const hi  = (o.hi||'').trim();
+    if(!en) return `<td style="width:50%;${Z}"></td>`;
+    const hiHTML = (hi&&en&&hi!==en)
+      ? `<div style="${Z}font-family:${FH};font-size:${HS};color:#111;">${hi}</div>`
+      : '';
+    return `<td style="width:50%;vertical-align:top;${Z}padding-right:4px;">
+      <table border="0" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;${Z}">
+        <tr>
+          <td style="vertical-align:top;white-space:nowrap;${Z}width:20px;">
+            <span style="font-family:${F};font-size:${OS};${Z}color:#000;">(${lbl})</span>
+          </td>
+          <td style="vertical-align:top;${Z}padding-left:2px;">
+            <div style="${Z}font-family:${F};font-size:${OS};color:#000;">${en}</div>
+            ${hiHTML}
+          </td>
+        </tr>
+      </table>
+    </td>`;
+  }
+
+  function qBlock(q, num){
+    const hiQ = (q.hi&&q.en&&q.hi!==q.en)
+      ? `<div style="${Z}font-family:${FH};font-size:${HS};color:#222;">${q.hi}</div>`
+      : '';
+    // Year: light yellow background, black text, right-aligned
+    const yearHTML = q.year
+      ? `<div style="${Z}text-align:right;padding:0;"><span style="font-family:${F};font-size:9pt;font-style:italic;font-weight:bold;color:#000;background:#fffacd;padding:0 3px;">${q.year}</span></div>`
+      : '';
+
+    // Options span FULL width — aligned under Q number (not indented)
+    const optsTable = `<table border="0" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;${Z}">
+      <tr>${optCell('A',q)}${optCell('B',q)}</tr>
+      <tr>${optCell('C',q)}${optCell('D',q)}</tr>
+    </table>`;
+
+    return `<table border="0" cellpadding="0" cellspacing="0"
+        style="width:100%;border-collapse:collapse;${Z}margin-bottom:0;">
+      <!-- Q number + question text row -->
+      <tr>
+        <td style="vertical-align:top;white-space:nowrap;${Z}width:18px;">
+          <b style="font-family:${F};font-size:${QS};${Z}color:#000;">${num}.</b>
+        </td>
+        <td style="vertical-align:top;${Z}padding-left:3px;">
+          <div style="${Z}font-family:${F};font-size:${QS};font-weight:bold;color:#000;">${q.en||q.hi}</div>${hiQ}${yearHTML}
+        </td>
+      </tr>
+      <!-- Options row — full width, starting from Q number column -->
+      <tr>
+        <td colspan="2" style="${Z}padding-top:0;">
+          ${optsTable}
+        </td>
+      </tr>
+    </table>`;
+  }
+
+  function answerKeyBlock(){
+    const perRow=5;
+    let rows='',row='';
+    questions.forEach((q,i)=>{
+      const idx=q.correct?q.correct.toLowerCase():'—';
+      row+=`<td style="padding:1pt 6pt;border:1px solid #999;font-family:${F};font-size:10pt;${Z}color:#000;"><b>Q${i+1}.</b>&nbsp;(${idx})</td>`;
+      if((i+1)%perRow===0||i===questions.length-1){rows+=`<tr>${row}</tr>`;row='';}
+    });
+    return `<div style="${Z}margin-top:12pt;page-break-before:always;">
+      <p style="${Z}font-family:${F};font-size:12pt;font-weight:bold;color:#000;border-bottom:1pt solid #000;padding-bottom:2pt;margin-bottom:4pt;">ANSWER KEY</p>
+      <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows}</table>
+    </div>`;
+  }
+
+  const half=Math.ceil(questions.length/2);
+  const leftQ =questions.slice(0,half).map((q,i)=>qBlock(q,i+1)).join('');
+  const rightQ=questions.slice(half).map((q,i)=>qBlock(q,half+i+1)).join('');
+
+  // Chapter title page (pehla page)
+  const chapterTitlePage = currentChapter ? `
+  <div style="page-break-after:always;width:100%;height:600pt;display:flex;align-items:center;justify-content:center;text-align:center;">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;height:600pt;border-collapse:collapse;">
+      <tr><td style="vertical-align:middle;text-align:center;padding:40pt;">
+        <div style="font-family:${F};font-size:28pt;font-weight:bold;color:#000;margin-bottom:18pt;letter-spacing:1pt;">
+          ${currentChapter}
+        </div>
+        <div style="width:120pt;height:3pt;background:#000;margin:0 auto 18pt auto;"></div>
+        <div style="font-family:${F};font-size:13pt;color:#444;">MCQ Practice Set</div>
+      </td></tr>
+    </table>
+  </div>` : '';
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;mso-para-margin:0;}
+  body{font-family:${F};font-size:${QS};line-height:1.0;color:#000;
+       mso-para-margin:0;mso-para-margin-top:0pt;mso-para-margin-bottom:0pt;}
+  p,div,td,span{margin:0;padding:0;mso-para-margin:0;mso-para-margin-bottom:0pt;}
+  table{border-collapse:collapse;}
+  @page{mso-para-margin:0;}
+</style>
+</head><body>
+${chapterTitlePage}
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+  <tr>
+    <td style="width:49%;vertical-align:top;padding-right:7pt;">${leftQ}</td>
+    <td style="width:1pt;border-left:1pt solid #aaa;">&nbsp;</td>
+    <td style="width:49%;vertical-align:top;padding-left:7pt;">${rightQ}</td>
+  </tr>
+</table>
+${answerKeyBlock()}
+</body></html>`;
+
+  try{
+    const blob=htmlDocx.asBlob(html);
+    const safeChapter = currentChapter ? currentChapter.replace(/[^a-zA-Z0-9\u0900-\u097F\s_-]/g,'').trim().replace(/\s+/g,'_') : 'Questions';
+    dlBlob(blob, safeChapter + '.docx');
+    showToast('📄 DOCX download ho raha hai!','green');
+  }catch(e){showToast('DOCX error: '+e.message,'red');console.error(e);}
+}
+
+// ════════════════════════════════════════════════════════
+// EXPORT PPTX Export
+// Master slide • Book Antiqua • 2x2 options • Answer Key slide
+// ════════════════════════════════════════════════════════
+function exportPPTX(){
+  if(!questions.length){showToast('Questions add karo pehle!','red');return;}
+  if(typeof PptxGenJS==='undefined'){showToast('PPTX library load nahi hui!','red');return;}
+  try{
+    const pptx=new PptxGenJS();
+    pptx.layout='LAYOUT_WIDE'; // 13.33 x 7.5 inches
+
+    const C={
+      bg:'091509', lgreen:'3D8B3D', gold:'D4AF37',
+      white:'FFFFFF', lgray:'AAAAAA', dark:'0D1F0D',
+      ansKey:'C8E6C9'
+    };
+
+    // ── MASTER SLIDE DEFINITION ──────────────────────────
+    // Edit this in PowerPoint: View → Slide Master → apply to all
+    pptx.defineSlideMaster({
+      title: 'SLIDE_MASTER',
+      background: { color: C.bg },
+      objects: [
+        // "QUESTION" green badge — top left
+        {
+          rect: {
+            x:0.28, y:0.12, w:2.4, h:0.5,
+            fill:{ color: C.lgreen },
+            line:{ color: C.lgreen }
+          }
+        },
+        {
+          text: {
+            text: 'QUESTION',
+            options:{
+              x:0.28, y:0.12, w:2.4, h:0.5,
+              fontSize:15, bold:true, color:C.white,
+              align:'center', valign:'middle', fontFace:FONT
+            }
+          }
+        },
+        // Bottom border line
+        {
+          line:{
+            x:0, y:7.35, w:13.33,
+            line:{ color:C.lgreen, width:1.5 }
+          }
+        }
+      ],
+      slideNumber:{ x:12.6, y:7.12, color:C.lgray, fontSize:9, fontFace:FONT }
+    });
+
+    // ── CHAPTER TITLE SLIDE (pehla slide) ───────────────
+    if (currentChapter) {
+      const titleSl = pptx.addSlide({ masterName:'SLIDE_MASTER' });
+      // Big chapter name in center
+      titleSl.addText(currentChapter, {
+        x:0.5, y:2.2, w:12.33, h:2.0,
+        fontSize:40, bold:true, color:C.white,
+        align:'center', valign:'middle', fontFace:FONT,
+        breakLine:false
+      });
+      // Decorative line
+      titleSl.addShape(pptx.ShapeType.rect, {
+        x:3.5, y:4.4, w:6.33, h:0.07,
+        fill:{type:'solid', color:C.gold},
+        line:{color:C.gold}
+      });
+      // Subtitle
+      titleSl.addText('MCQ Practice Set', {
+        x:0.5, y:4.65, w:12.33, h:0.6,
+        fontSize:18, color:C.lgray,
+        align:'center', valign:'middle', fontFace:FONT
+      });
+    }
+
+    // ── QUESTION SLIDES ──────────────────────────────────
+    questions.forEach((q,i)=>{
+      const sl=pptx.addSlide({ masterName:'SLIDE_MASTER' });
+
+      // Q number — top right
+      sl.addShape(pptx.ShapeType.rect,{
+        x:12.18, y:0.1, w:0.9, h:0.54,
+        fill:{type:'solid',color:C.gold},
+        line:{color:C.gold}
+      });
+      sl.addText(`Q${i+1}`,{
+        x:12.18, y:0.1, w:0.9, h:0.54,
+        fontSize:16, bold:true, color:'000000',
+        align:'center', valign:'middle', fontFace:FONT
+      });
+
+      // English question text
+      sl.addText(q.en||q.hi,{
+        x:0.28, y:0.75, w:12.77, h:1.3,
+        fontSize:PPTX_Q_SIZE, bold:true, color:C.white,
+        valign:'top', wrap:true, fontFace:FONT,
+        align:'left', lineSpacingMultiple:PPTX_LS
+      });
+
+      // Hindi question text (Kokila 28pt)
+      let curY = 2.12;
+      if(q.hi&&q.en&&q.hi!==q.en){
+        sl.addText(q.hi,{
+          x:0.28, y:curY, w:12.77, h:0.65,
+          fontSize:PPTX_H_SIZE, color:C.white,
+          wrap:true, fontFace:'Kokila', lineSpacingMultiple:PPTX_LS
+        });
+        curY += 0.72;
+      }
+
+      // Year — RIGHT aligned, bold + italic, yellow color
+      if(q.year){
+        sl.addText(q.year,{
+          x:0.28, y:curY, w:12.77, h:0.38,
+          fontSize:16, bold:true, italic:true, color:'F0A500',
+          align:'right', valign:'middle', fontFace:FONT
+        });
+        curY += 0.44;
+      }
+
+      const optStartY = curY + 0.06;
+
+      // ── Options single column: A, B, C, D vertically ──
+      const letters=['A','B','C','D'];
+      const rowH   = 0.9;
+      const optX   = 0.28;
+      const optW   = 12.77;
+
+      letters.forEach((l,idx)=>{
+        const o=q.opts[l]||{};
+        const en=o.en||o.hi||'';
+        const hi=o.hi||'';
+        if(!en) return;
+
+        const y = optStartY + idx*rowH;
+
+        // Option letter circle
+        sl.addShape(pptx.ShapeType.ellipse,{
+          x:optX, y:y+0.04, w:0.46, h:0.46,
+          fill:{type:'solid',color:C.lgreen},
+          line:{color:C.lgreen}
+        });
+        sl.addText(l,{
+          x:optX, y:y+0.04, w:0.46, h:0.46,
+          fontSize:14, bold:true, color:C.white,
+          align:'center', valign:'middle', fontFace:FONT
+        });
+
+        // English option text — 28pt
+        sl.addText(en,{
+          x:optX+0.56, y:y+0.01, w:optW-0.6, h:0.46,
+          fontSize:PPTX_O_SIZE, color:C.white,
+          wrap:true, fontFace:FONT, valign:'top',
+          lineSpacingMultiple:PPTX_LS
+        });
+
+        // Hindi option text (Kokila 28pt)
+        if(hi&&en&&hi!==en){
+          sl.addText(hi,{
+            x:optX+0.56, y:y+0.46, w:optW-0.6, h:0.38,
+            fontSize:PPTX_H_SIZE, color:C.white,
+            wrap:true, fontFace:'Kokila',
+            lineSpacingMultiple:PPTX_LS
+          });
+        }
+      });
+    });
+
+    // ── ANSWER KEY SLIDE (last slide) ────────────────────
+    const akSl = pptx.addSlide({ masterName:'SLIDE_MASTER' });
+
+    akSl.addText('ANSWER KEY', {
+      x:0.28, y:0.75, w:12.77, h:0.65,
+      fontSize:30, bold:true, color:C.gold,
+      align:'left', fontFace:FONT
+    });
+
+    // Divider line under heading
+    akSl.addShape(pptx.ShapeType.line,{
+      x:0.28, y:1.42, w:12.77,
+      line:{ color:C.gold, width:1.5 }
+    });
+
+    // Answers in 4-column grid
+    const cols=4, cellW=3.1, cellH=0.48, startX=0.28, startY=1.55;
+    questions.forEach((q,i)=>{
+      const row=Math.floor(i/cols);
+      const col=i%cols;
+      const x=startX+col*cellW;
+      const y=startY+row*cellH;
+      const optIdx=q.correct?['A','B','C','D'].indexOf(q.correct)+1:'—';
+      const optText=(q.opts[q.correct]||{}).en||'';
+      akSl.addText(`Q${i+1}.  (${optIdx}) ${optText}`,{
+        x, y, w:cellW-0.1, h:cellH,
+        fontSize:14, color:C.white, fontFace:FONT,
+        valign:'middle', wrap:false
+      });
+    });
+
+    const safeChapterPptx = currentChapter ? currentChapter.replace(/[^a-zA-Z0-9\u0900-\u097F\s_-]/g,'').trim().replace(/\s+/g,'_') : 'Questions';
+    pptx.writeFile({fileName: safeChapterPptx + '.pptx'});
+    showToast('🖥 PPTX download ho raha hai!','green');
+  }catch(e){showToast('PPTX error: '+e.message,'red');console.error(e);}
+}
+
+function dlBlob(blob,name){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=name;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(a.href);},300);
+}
+// ── Global Firebase variables — load ke baad initialize honge ──
+let auth = null, db = null, currentUser = null;
+let loginMode = true;
+
+// ══ FIREBASE INIT — direct run ══════════════════════════════
+(function initFirebase() {
+  if (typeof firebase === 'undefined') {
+    alert('❌ Firebase load nahi hua! Internet check karo.');
+    return;
+  }
+
+// Global functions — onclick ke liye window pe expose karo
+window.switchLoginMode = switchLoginMode;
+window.doAuth = doAuth;
+window.forgotPass = forgotPass;
+window.doLogout = doLogout;
+window.syncFromCloud = syncFromCloud;
+window.openAdminPanel    = openAdminPanel;
+window.filterAdminUsers  = filterAdminUsers;
+window.adminViewUser     = function(idx){ adminEditActive(idx); }; // backward compat
+window.adminEditChapter  = adminEditChapter;
+window.adminEditActive   = adminEditActive;
+window.adminExport       = adminExport;
+window.adminExportChapter = adminExportChapter;
+window.adminDeleteUser   = adminDeleteUser;
+window.adminDeleteChapter = adminDeleteChapter;
+window.resetInactiveTimer = resetInactiveTimer;
+window.confirmChapter    = confirmChapter;
+window.completeChapter   = completeChapter;
+window.showChapterModal  = showChapterModal;
+window.openMyChapters    = openMyChapters;
+window.saveChapterToCloud = saveChapterToCloud;
+
+// ══ FIREBASE CONFIG ══════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyCSsED4MwpEGIyM4kqg-gKs9Uq9N0YDXMA",
+  authDomain: "mcq-maker-6f711.firebaseapp.com",
+  projectId: "mcq-maker-6f711",
+  storageBucket: "mcq-maker-6f711.firebasestorage.app",
+  messagingSenderId: "490970595673",
+  appId: "1:490970595673:web:ad30f9c17bbc9d5634cc48"
+};
+// ════════════════════════════════════════════════════════════
+
+firebase.initializeApp(firebaseConfig);
+auth = firebase.auth();
+db   = firebase.firestore();
+
+// currentUser aur loginMode already global hain
+
+// currentUser aur loginMode already global hain
+
+// Login screen already in HTML body
+
+
+// User bar already in HTML body
+
+// ── Auto Logout after 8 hours inactivity (was 5 min — badhaya gaya) ───────────────
+let inactiveSeconds = 0;
+const AUTO_LOGOUT_SEC = 300; // 5 minutes (5 * 60)
+let inactiveInterval = null;
+
+function resetInactiveTimer() {
+  inactiveSeconds = 0;
+}
+
+function startInactiveTimer() {
+  if (inactiveInterval) clearInterval(inactiveInterval);
+  inactiveSeconds = 0;
+  inactiveInterval = setInterval(() => {
+    if (!currentUser) { clearInterval(inactiveInterval); return; }
+    inactiveSeconds++;
+    const remaining = AUTO_LOGOUT_SEC - inactiveSeconds;
+    const timerEl = document.getElementById('inactiveTimer');
+    if (timerEl) {
+      const m = Math.floor(remaining/60);
+      const s = remaining % 60;
+      timerEl.textContent = `⏱ ${m}:${s.toString().padStart(2,'0')}`;
+      timerEl.style.color = remaining <= 60 ? '#e74c3c' : remaining <= 120 ? '#f0a500' : '#8b87b0';
+    }
+    if (inactiveSeconds >= AUTO_LOGOUT_SEC) {
+      clearInterval(inactiveInterval);
+      if (questions.length && currentUser) {
+        showToast('💾 Auto logout — questions save ho rahe hain...', 'yellow');
+        saveChapterToCloud(questions, currentChapter || 'Auto-saved', 'autologout')
+          .then(() => setTimeout(() => auth.signOut(), 1200))
+          .catch(()  => setTimeout(() => auth.signOut(), 1200));
+      } else {
+        showToast('⏱ 5 min se koi kaam nahi — auto logout!', 'yellow');
+        setTimeout(() => auth.signOut(), 2000);
+      }
+    }
+  }, 1000);
+}
+
+function stopInactiveTimer() {
+  if (inactiveInterval) clearInterval(inactiveInterval);
+  const timerEl = document.getElementById('inactiveTimer');
+  if (timerEl) timerEl.textContent = '';
+}
+
+// Reset timer on any user activity
+['click','keydown','mousemove','scroll','touchstart'].forEach(evt => {
+  document.addEventListener(evt, resetInactiveTimer, { passive: true });
+});
+
+
+// ── Auth State Observer ──────────────────────────────────────
+auth.onAuthStateChanged(user => {
+  if (user) {
+    currentUser = user;
+    const ls = document.getElementById('loginScreen');
+    const ub = document.getElementById('userBar');
+    const el = document.getElementById('userEmailLabel');
+    if (ls) ls.style.display = 'none';
+    if (ub) ub.style.display = 'flex';
+    if (el) el.textContent  = user.email;
+    document.body.style.paddingTop = '44px';
+    loadFromCloud();
+    checkAdminStatus(user.uid);
+    startInactiveTimer();
+    if (!currentChapter) {
+      setTimeout(() => showChapterModal(false), 400);
+    }
+  } else {
+    currentUser = null;
+    // ── Sab data clear karo logout pe ──
+    questions = [];
+    editIdx = -1;
+    currentChapter = '';
+    renderList();
+    clearForm();
+    document.getElementById('chapterBanner').style.display = 'none';
+    document.getElementById('chapterBannerName').textContent = '—';
+    // ──────────────────────────────────
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('userBar').style.display     = 'none';
+    stopInactiveTimer();
+    const ab = document.getElementById('_adminBtn');
+    if (ab) ab.remove();
+  }
+});
+
+// ── Admin Status Check ───────────────────────────────────────
+function checkAdminStatus(uid) {
+  db.collection('users').doc(uid).get().then(doc => {
+    if (doc.exists && doc.data().isAdmin === true) {
+      // Add admin button if not already there
+      if (!document.getElementById('_adminBtn')) {
+        const userActions = document.querySelector('.user-actions');
+        if (userActions) {
+          const btn = document.createElement('button');
+          btn.id = '_adminBtn';
+          btn.textContent = '👑 Admin';
+          btn.className = 'sync-btn';
+          btn.style.background = '#F0A500';
+          btn.style.color = '#000';
+          btn.style.fontWeight = '700';
+          btn.onclick = openAdminPanel;
+          userActions.insertBefore(btn, userActions.firstChild);
+        }
+      }
+    }
+  });
+}
+
+// ── Admin Panel (Web) ────────────────────────────────────────
+function openAdminPanel() {
+  // Create full-screen admin overlay
+  const overlay = document.createElement('div');
+  overlay.id = '_adminOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:#0d0c1d;z-index:99998;overflow-y:auto;font-family:inherit;';
+  overlay.innerHTML = `
+    <div style="background:#161B22;padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #2a2748;position:sticky;top:0;z-index:1;">
+      <button onclick="document.getElementById('_adminOverlay').remove()" style="background:#2a2748;border:none;color:#7c5cfc;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:14px;">← Back</button>
+      <span style="color:#fff;font-weight:700;font-size:16px;">👑 Admin Panel</span>
+      <span id="_adminCount" style="color:#888;font-size:13px;margin-left:auto;"></span>
+    </div>
+    <div style="padding:12px 18px;">
+      <input id="_adminSearch" placeholder="🔍 Email se search..." style="width:100%;padding:10px 14px;background:#1E1E2E;border:1px solid #2a2748;border-radius:10px;color:#fff;font-size:14px;box-sizing:border-box;margin-bottom:12px;" oninput="filterAdminUsers(this.value)">
+      <div id="_adminList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div id="_adminLoading" style="text-align:center;color:#888;padding:30px;">⏳ Users load ho rahe hain...</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  loadAdminUsers();
+}
+
+let _allAdminUsers = [];
+
+function loadAdminUsers() {
+  db.collection('users').get().then(snap => {
+    _allAdminUsers = [];
+    const promises = [];
+    snap.forEach(doc => {
+      const uid   = doc.id;
+      const email = doc.data().email || uid;
+      const joined = doc.data().joinedAt || '—';
+
+      // Active questions + chapters load karo
+      const pActive = db.collection('users').doc(uid)
+        .collection('data').doc('questions').get()
+        .then(qDoc => {
+          let json = '', count = 0;
+          if (qDoc.exists && qDoc.data() && qDoc.data().questions) {
+            json = qDoc.data().questions;
+            try { count = JSON.parse(json).length; } catch(e){}
+          }
+          return { json, count };
+        }).catch(() => ({ json:'', count:0 }));
+
+      const pChapters = db.collection('users').doc(uid)
+        .collection('data').doc('questions').get()
+        .then(doc => {
+          const arr = [];
+          if (doc.exists) {
+            Object.entries(doc.data()).forEach(([key, val]) => {
+              if (key.startsWith('chap_')) {
+                try { arr.push({ id: key, ...JSON.parse(val) }); } catch(e){}
+              }
+            });
+          }
+          return arr.sort((a,b) => (b.savedAt||0) - (a.savedAt||0));
+        }).catch(() => []);
+
+      promises.push(
+        Promise.all([pActive, pChapters]).then(([active, chapters]) => {
+          _allAdminUsers.push({ uid, email, joined, ...active, chapters });
+        })
+      );
+    });
+
+    Promise.all(promises).then(() => {
+      _allAdminUsers.sort((a,b) => (b.chapters.length + (b.count?1:0)) - (a.chapters.length + (a.count?1:0)));
+      renderAdminUsers(_allAdminUsers);
+      const el = document.getElementById('_adminCount');
+      if (el) el.textContent = _allAdminUsers.length + ' users';
+      const ld = document.getElementById('_adminLoading');
+      if (ld) ld.style.display = 'none';
+    });
+  }).catch(e => {
+    const ld = document.getElementById('_adminLoading');
+    if (ld) ld.textContent = '❌ Error: ' + e.message;
+  });
+}
+
+function filterAdminUsers(q) {
+  const filtered = q ? _allAdminUsers.filter(u => u.email.toLowerCase().includes(q.toLowerCase())) : _allAdminUsers;
+  renderAdminUsers(filtered);
+}
+
+function renderAdminUsers(users) {
+  const list = document.getElementById('_adminList');
+  if (!list) return;
+  if (!users.length) { list.innerHTML = '<div style="color:#888;text-align:center;padding:20px;">Koi user nahi mila</div>'; return; }
+  list.innerHTML = users.map((u, ui) => {
+    const totalQ = u.chapters.reduce((s,c) => s+(c.questionCount||0), 0) + u.count;
+    const statusColor = { completed:'#2ecc71', autologout:'#f0a500', active:'#7c5cfc' };
+    const statusLabel = { completed:'✅ Complete', autologout:'⏱ Auto-logout', active:'🔵 Active' };
+
+    const chapRows = u.chapters.length ? u.chapters.map((ch, ci) => `
+      <div class="adm-chapter-row">
+        <div class="adm-chapter-name">📖 ${ch.chapterName}</div>
+        <div class="adm-chapter-meta">${ch.questionCount||0} Q &nbsp;|&nbsp; ${ch.savedAtStr||'—'}</div>
+        <span style="background:rgba(46,204,113,.15);color:${statusColor[ch.status]||'#888'};border:1px solid ${statusColor[ch.status]||'#888'};border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;">${statusLabel[ch.status]||ch.status}</span>
+        <div style="display:flex;gap:5px;flex-shrink:0;">
+          <button onclick="adminEditChapter(${ui},${ci})" style="background:#2a2748;border:none;color:#fff;padding:5px 10px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;">✏️ Edit</button>
+          <button onclick="adminExportChapter(${ui},${ci},'docx')" style="background:#2ecc71;border:none;color:#000;padding:5px 10px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;">DOCX</button>
+          <button onclick="adminExportChapter(${ui},${ci},'pptx')" style="background:#7c5cfc;border:none;color:#fff;padding:5px 10px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;">PPTX</button>
+          <button onclick="adminDeleteChapter(${ui},${ci})" style="background:#e74c3c;border:none;color:#fff;padding:5px 8px;border-radius:7px;cursor:pointer;font-size:12px;">🗑</button>
+        </div>
+      </div>`) .join('') : '<div style="color:#555;font-size:12px;padding:6px 2px;">Koi completed chapter nahi</div>';
+
+    const activeRow = u.count > 0 ? `
+      <div class="adm-chapter-row" style="border-color:#7c5cfc;">
+        <div class="adm-chapter-name">🔵 Active Questions</div>
+        <div class="adm-chapter-meta">${u.count} Q (current)</div>
+        <div style="display:flex;gap:5px;flex-shrink:0;">
+          <button onclick="adminEditActive(${ui})" style="background:#2a2748;border:none;color:#fff;padding:5px 10px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;">✏️ Edit</button>
+          <button onclick="adminExport(${ui},'docx')" style="background:#2ecc71;border:none;color:#000;padding:5px 10px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;">DOCX</button>
+          <button onclick="adminExport(${ui},'pptx')" style="background:#7c5cfc;border:none;color:#fff;padding:5px 10px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;">PPTX</button>
+        </div>
+      </div>` : '';
+
+    return `
+    <div class="adm-user-block">
+      <div class="adm-user-hdr" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'flex':'none'">
+        <div style="width:38px;height:38px;background:#1A1A3E;border:2px solid #7c5cfc;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;flex-shrink:0;">${u.email[0].toUpperCase()}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="color:#fff;font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${u.email}</div>
+          <div style="color:#666;font-size:11px;">Joined: ${u.joined} &nbsp;|&nbsp; ${u.chapters.length} chapters &nbsp;|&nbsp; ${totalQ} total Q</div>
+        </div>
+        <span style="color:#555;font-size:18px;">▾</span>
+      </div>
+      <div class="adm-chapters-body" style="display:none;">
+        ${activeRow}
+        ${chapRows}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Chapter Editor UI (shared by Admin + User) ───────────────
+function openChapterEditorUI(params) {
+  // params: { uid, chapterId, chapterName, questions, isAdmin, onSave }
+  let editQs = JSON.parse(JSON.stringify(params.questions));
+
+  const overlay = document.createElement('div');
+  overlay.id = '_chEditorOverlay';
+  overlay.className = 'ch-overlay';
+
+  function renderEditor() {
+    overlay.innerHTML = `
+      <div class="ch-topbar">
+        <button class="ch-back-btn" onclick="document.getElementById('_chEditorOverlay').remove()">← Back</button>
+        <div class="ch-topbar-title">${params.isAdmin ? '👑 Admin Edit: ' : '✏️ Edit: '}${params.chapterName}</div>
+        <span class="ch-topbar-badge" id="_chQCount">${editQs.length} Q</span>
+        <button class="ch-save-btn" onclick="_chSave()">💾 Save Changes</button>
+      </div>
+      <div class="ch-body">
+        <div class="ch-cards-grid" id="_chQList"></div>
+        <button class="ch-add-btn" onclick="_chAddQ()">➕ Naya Question Add Karo</button>
+      </div>`;
+    document.body.appendChild(overlay);
+    renderChQList();
+  }
+
+  function renderChQList() {
+    const container = document.getElementById('_chQList');
+    if (!container) return;
+    container.innerHTML = editQs.map((q, i) => `
+      <div class="ch-qcard" id="_chq_${i}">
+        <div class="ch-qcard-hdr">
+          <span class="ch-qnum">Q${i+1}</span>
+          <button class="ch-del-btn" onclick="_chDelQ(${i})">🗑 Delete</button>
+        </div>
+        <div class="ch-field"><label>English Question</label>
+          <textarea id="_chqEN_${i}">${(q.en||'').replace(/</g,'&lt;')}</textarea></div>
+        <div class="ch-field"><label>Hindi Question (optional)</label>
+          <textarea id="_chqHI_${i}" style="font-family:'Baloo 2','Noto Sans Devanagari',sans-serif;">${(q.hi||'').replace(/</g,'&lt;')}</textarea></div>
+        <div class="ch-opts-grid">
+          ${['A','B','C','D'].map(l => `
+            <div>
+              <div class="ch-field"><label>${l} (English)</label>
+                <input id="_chqO${l}en_${i}" value="${((q.opts&&q.opts[l]&&q.opts[l].en)||'').replace(/"/g,'&quot;')}"></div>
+              <div class="ch-field"><label>${l} (Hindi)</label>
+                <input id="_chqO${l}hi_${i}" style="font-family:'Baloo 2','Noto Sans Devanagari',sans-serif;" value="${((q.opts&&q.opts[l]&&q.opts[l].hi)||'').replace(/"/g,'&quot;')}"></div>
+            </div>`).join('')}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
+          <div class="ch-field"><label>Correct Answer</label>
+            <select id="_chqANS_${i}">
+              ${['A','B','C','D'].map(l => `<option value="${l}" ${q.correct===l?'selected':''}>${l}</option>`).join('')}
+            </select></div>
+          <div class="ch-field"><label>Year</label>
+            <input id="_chqYR_${i}" value="${(q.year||'').replace(/"/g,'&quot;')}"></div>
+        </div>
+      </div>`).join('');
+  }
+
+  window._chDelQ = function(i) {
+    if (!confirm('Q' + (i+1) + ' delete karna chahte ho?')) return;
+    editQs.splice(i, 1);
+    renderChQList();
+    const bc = document.getElementById('_chQCount');
+    if (bc) bc.textContent = editQs.length + ' Q';
+  };
+
+  window._chAddQ = function() {
+    editQs.push({ en:'', hi:'', opts:{A:{en:'',hi:''},B:{en:'',hi:''},C:{en:'',hi:''},D:{en:'',hi:''}}, correct:'A', year:'' });
+    renderChQList();
+    const bc = document.getElementById('_chQCount');
+    if (bc) bc.textContent = editQs.length + ' Q';
+    // Scroll to new question
+    setTimeout(() => { const el = document.getElementById('_chq_' + (editQs.length-1)); if(el) el.scrollIntoView({behavior:'smooth'}); }, 100);
+  };
+
+  window._chSave = function() {
+    // Collect all values from DOM
+    editQs = editQs.map((q, i) => ({
+      ...q,
+      en: document.getElementById('_chqEN_' + i)?.value.trim() || '',
+      hi: document.getElementById('_chqHI_' + i)?.value.trim() || '',
+      correct: document.getElementById('_chqANS_' + i)?.value || 'A',
+      year: document.getElementById('_chqYR_' + i)?.value.trim() || '',
+      opts: {
+        A: { en: document.getElementById('_chqOAen_' + i)?.value.trim()||'', hi: document.getElementById('_chqOAhi_' + i)?.value.trim()||'' },
+        B: { en: document.getElementById('_chqOBen_' + i)?.value.trim()||'', hi: document.getElementById('_chqOBhi_' + i)?.value.trim()||'' },
+        C: { en: document.getElementById('_chqOCen_' + i)?.value.trim()||'', hi: document.getElementById('_chqOChi_' + i)?.value.trim()||'' },
+        D: { en: document.getElementById('_chqODen_' + i)?.value.trim()||'', hi: document.getElementById('_chqODhi_' + i)?.value.trim()||'' }
+      }
+    }));
+    const saveBtn = document.querySelector('.ch-save-btn');
+    if (saveBtn) { saveBtn.textContent = '⏳ Saving...'; saveBtn.disabled = true; }
+
+    params.onSave(editQs)
+      .then(() => {
+        showToast('✅ Chapter save ho gaya!', 'green');
+        if (saveBtn) { saveBtn.textContent = '💾 Save Changes'; saveBtn.disabled = false; }
+      })
+      .catch(e => {
+        showToast('❌ Save fail: ' + e.message, 'red');
+        if (saveBtn) { saveBtn.textContent = '💾 Save Changes'; saveBtn.disabled = false; }
+      });
+  };
+
+  renderEditor();
+}
+
+// ── Admin: Edit a completed chapter ──────────────────────────
+function adminEditChapter(ui, ci) {
+  const u  = _allAdminUsers[ui];
+  const ch = u.chapters[ci];
+  let qs; try { qs = JSON.parse(ch.questions||'[]'); } catch(e){ qs=[]; }
+  openChapterEditorUI({
+    uid: u.uid, chapterId: ch.id,
+    chapterName: ch.chapterName,
+    questions: qs, isAdmin: true,
+    onSave: (newQs) => updateChapterInCloud(u.uid, ch.id, newQs, ch.chapterName)
+      .then(() => { ch.questions = JSON.stringify(newQs); ch.questionCount = newQs.length; })
+  });
+}
+
+// ── Admin: Edit active questions of a user ───────────────────
+function adminEditActive(ui) {
+  const u = _allAdminUsers[ui];
+  let qs; try { qs = JSON.parse(u.json||'[]'); } catch(e){ qs=[]; }
+  openChapterEditorUI({
+    uid: u.uid, chapterId: 'questions',
+    chapterName: u.email + ' — Active Questions',
+    questions: qs, isAdmin: true,
+    onSave: (newQs) => db.collection('users').doc(u.uid)
+      .collection('data').doc('questions')
+      .update({ questions: JSON.stringify(newQs), questionCount: newQs.length, updatedAt: Date.now() })
+      .then(() => { u.json = JSON.stringify(newQs); u.count = newQs.length; })
+  });
+}
+
+// ── Admin: Export a completed chapter ────────────────────────
+function adminExportChapter(ui, ci, type) {
+  const u  = _allAdminUsers[ui];
+  const ch = u.chapters[ci];
+  if (!ch.questions) { showToast('Koi questions nahi!','red'); return; }
+  const backup    = JSON.parse(JSON.stringify(questions));
+  const backupCh  = currentChapter;
+  try {
+    questions      = JSON.parse(ch.questions);
+    currentChapter = ch.chapterName;
+    if (type === 'docx') exportDOCX();
+    else { setTimeout(() => exportPPTX(), 200); }
+    showToast('⏳ ' + type.toUpperCase() + ' ban raha hai...', 'yellow');
+  } catch(e) { showToast('Error: ' + e.message, 'red'); }
+  setTimeout(() => { questions = backup; currentChapter = backupCh; }, 1500);
+}
+
+// ── Admin: Delete a chapter ───────────────────────────────────
+function adminDeleteChapter(ui, ci) {
+  const u  = _allAdminUsers[ui];
+  const ch = u.chapters[ci];
+  if (!confirm('"' + ch.chapterName + '" delete karna chahte ho?')) return;
+  const upd = {};
+  upd[ch.id] = firebase.firestore.FieldValue.delete();
+  db.collection('users').doc(u.uid).collection('data').doc('questions')
+    .update(upd)
+    .then(() => { showToast('🗑 Chapter deleted!','red'); u.chapters.splice(ci,1); renderAdminUsers(_allAdminUsers); })
+    .catch(e => showToast('Error: ' + e.message,'red'));
+}
+
+// ── User: My Chapters view ────────────────────────────────────
+function openMyChapters() {
+  if (!currentUser) { showToast('Login karo pehle!','red'); return; }
+  const overlay = document.createElement('div');
+  overlay.id = '_myChOverlay';
+  overlay.className = 'ch-overlay';
+  overlay.innerHTML = `
+    <div class="ch-topbar">
+      <button class="ch-back-btn" onclick="document.getElementById('_myChOverlay').remove()">← Back</button>
+      <div class="ch-topbar-title">📂 Mere Chapters</div>
+      <span class="ch-topbar-badge" id="_myChCount">Loading...</span>
+    </div>
+    <div class="ch-body">
+      <div id="_myChList" style="display:flex;flex-direction:column;gap:10px;">
+        <div style="text-align:center;color:#666;padding:30px;">⏳ Load ho raha hai...</div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  // ── Step 1: localStorage se turant load karo ─────────────────
+  const localAll = getLocalChapters();
+  const chapters = [];
+  Object.entries(localAll).forEach(([key, val]) => {
+    try { chapters.push({ id: key, ...JSON.parse(val) }); } catch(e){}
+  });
+  chapters.sort((a,b) => (b.savedAt||0) - (a.savedAt||0));
+
+  // Turant show karo (localStorage data)
+  const cnt = document.getElementById('_myChCount');
+  if (cnt) cnt.textContent = chapters.length + ' Chapters';
+  renderMyChaptersList(chapters, overlay);
+
+  // ── Step 2: Firestore se bhi merge karo (background mein) ────
+  if (currentUser) {
+    db.collection('users').doc(currentUser.uid)
+      .collection('data').doc('questions').get()
+      .then(doc => {
+        if (!doc.exists) return;
+        let updated = false;
+        Object.entries(doc.data()).forEach(([key, val]) => {
+          if (key.startsWith('chap_') && !localAll[key]) {
+            try {
+              const chData = JSON.parse(val);
+              chapters.push({ id: key, ...chData });
+              setLocalChapter(key, chData); // Sync to localStorage
+              updated = true;
+            } catch(e){}
+          }
+        });
+        if (updated) {
+          chapters.sort((a,b) => (b.savedAt||0) - (a.savedAt||0));
+          if (cnt) cnt.textContent = chapters.length + ' Chapters';
+          renderMyChaptersList(chapters, overlay);
+        }
+      }).catch(() => {}); // Firestore fail = no problem, localStorage data already showing
+  }
+}
+
+// ── Render My Chapters list ───────────────────────────────────
+function renderMyChaptersList(chapters, overlay) {
+  const list = overlay ? overlay.querySelector('#_myChList') : document.getElementById('_myChList');
+  if (!list) return;
+  const cnt  = overlay ? overlay.querySelector('#_myChCount') : document.getElementById('_myChCount');
+  if (cnt) cnt.textContent = chapters.length + ' Chapters';
+
+  if (!chapters.length) {
+    list.innerHTML = '<div style="text-align:center;color:#555;padding:40px;line-height:1.8;">Abhi tak koi chapter complete nahi hua.<br><br>Pehle <b style="color:#7c5cfc;">Chapter Complete</b> karo!</div>';
+    return;
+  }
+  const statusColor = { completed:'#2ecc71', autologout:'#f0a500' };
+  const statusLabel = { completed:'✅ Completed', autologout:'⏱ Auto-saved' };
+  list.innerHTML = chapters.map((ch, i) => `
+    <div class="mych-card">
+      <div class="mych-icon">📖</div>
+      <div class="mych-info">
+        <div class="mych-name">${ch.chapterName}</div>
+        <div class="mych-meta">${ch.questionCount||0} Questions &nbsp;•&nbsp; ${ch.savedAtStr||'—'} &nbsp;•&nbsp;
+          <span style="color:${statusColor[ch.status]||'#888'}">${statusLabel[ch.status]||ch.status||''}</span>
+        </div>
+      </div>
+      <div class="mych-actions">
+        <button onclick="_myChEdit(${i})" style="background:#2a2748;border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;">✏️ Edit</button>
+        <button onclick="_myChExport(${i},'docx')" style="background:#2ecc71;border:none;color:#000;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;">DOCX</button>
+        <button onclick="_myChExport(${i},'pptx')" style="background:#7c5cfc;border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;">PPTX</button>
+      </div>
+    </div>`).join('');
+
+  window._myChEdit = function(i) {
+    const ch = chapters[i];
+    let qs; try { qs = JSON.parse(ch.questions||'[]'); } catch(e){ qs=[]; }
+    openChapterEditorUI({
+      uid: currentUser ? currentUser.uid : null,
+      chapterId: ch.id, chapterName: ch.chapterName, questions: qs, isAdmin: false,
+      onSave: (newQs) => updateChapterInCloud(currentUser ? currentUser.uid : null, ch.id, newQs, ch.chapterName)
+        .then(() => { ch.questions = JSON.stringify(newQs); ch.questionCount = newQs.length; })
+    });
+  };
+  window._myChExport = function(i, type) {
+    const ch = chapters[i];
+    if (!ch.questions) { showToast('Koi questions nahi!','red'); return; }
+    const backup = JSON.parse(JSON.stringify(questions));
+    const backupCh = currentChapter;
+    questions = JSON.parse(ch.questions);
+    currentChapter = ch.chapterName;
+    if (type === 'docx') exportDOCX();
+    else setTimeout(() => exportPPTX(), 200);
+    showToast('⏳ ' + type.toUpperCase() + ' ban raha hai...', 'yellow');
+    setTimeout(() => { questions = backup; currentChapter = backupCh; }, 1500);
+  };
+}
+
+function adminExport(idx, type) {
+  const u = _allAdminUsers[idx];
+  if (!u.json) { showToast('Koi questions nahi!', 'red'); return; }
+  // Temporarily load user's questions and export
+  const backup = [...questions];
+  try {
+    questions = JSON.parse(u.json);
+    const safeEmail = u.email.replace('@','_').replace(/\./g,'_');
+    // Override dlBlob temporarily to use custom filename
+    const origDlBlob = window.dlBlob;
+    window.dlBlob = function(blob, name) {
+      const ext = name.split('.').pop();
+      origDlBlob(blob, safeEmail + '.' + ext);
+      window.dlBlob = origDlBlob;
+      questions = backup;
+    };
+    if (type === 'docx') exportDOCX();
+    else exportPPTX();
+    showToast('⏳ ' + type.toUpperCase() + ' ban raha hai...', 'yellow');
+  } catch(e) {
+    questions = backup;
+    showToast('Error: ' + e.message, 'red');
+  }
+}
+
+function adminDeleteUser(idx) {
+  const u = _allAdminUsers[idx];
+  if (!confirm(u.email + ' ka sara data delete karna chahte ho?')) return;
+  db.collection('users').doc(u.uid).collection('data').doc('questions').delete()
+    .then(() => {
+      showToast('🗑 Deleted!', 'red');
+      loadAdminUsers();
+    }).catch(e => showToast('Error: ' + e.message, 'red'));
+}
+
+
+// ── Switch Login/Register mode ───────────────────────────────
+function switchLoginMode(isLogin) {
+  loginMode = isLogin;
+  document.getElementById('tabL').classList.toggle('active', isLogin);
+  document.getElementById('tabR').classList.toggle('active', !isLogin);
+  document.getElementById('loginBtn').textContent = isLogin ? 'Login' : 'Account Banao';
+  document.getElementById('forgotBtn').style.display = isLogin ? 'block' : 'none';
+  document.getElementById('loginErr').textContent = '';
+}
+
+// ── Auth Action ──────────────────────────────────────────────
+function doAuth() {
+  const email = document.getElementById('lEmail').value.trim();
+  const pass  = document.getElementById('lPassword').value.trim();
+  const errEl = document.getElementById('loginErr');
+  const btn   = document.getElementById('loginBtn');
+  const spin  = document.getElementById('loginSpinner');
+
+  if (!email || !pass)  { errEl.textContent = '❌ Email aur password daalo!'; return; }
+  if (pass.length < 6)  { errEl.textContent = '❌ Password 6+ characters ka hona chahiye!'; return; }
+
+  errEl.textContent = '';
+  btn.disabled = true;
+  spin.style.display = 'block';
+
+  // Safety timeout — 10 sec baad button reset
+  const safetyTimer = setTimeout(() => {
+    btn.disabled = false;
+    spin.style.display = 'none';
+    errEl.textContent = '❌ Timeout — dobara try karo (internet check karo)';
+  }, 10000);
+
+  const action = loginMode
+    ? auth.signInWithEmailAndPassword(email, pass)
+    : auth.createUserWithEmailAndPassword(email, pass);
+
+  action
+    .then(cred => {
+      clearTimeout(safetyTimer);
+      btn.disabled = false;
+      spin.style.display = 'none';
+      // Register pe profile save
+      if (!loginMode) {
+        const now = new Date().toLocaleDateString('en-IN');
+        db.collection('users').doc(cred.user.uid).set({
+          email: cred.user.email,
+          uid:   cred.user.uid,
+          joinedAt: now,
+          isAdmin: false
+        }, { merge: true }).catch(e => console.warn('Profile save:', e));
+      }
+    })
+    .catch(err => {
+      clearTimeout(safetyTimer);
+      btn.disabled = false;
+      spin.style.display = 'none';
+      const msgs = {
+        'auth/user-not-found':       '❌ Email registered nahi hai',
+        'auth/wrong-password':       '❌ Password galat hai',
+        'auth/invalid-credential':   '❌ Email ya password galat hai',
+        'auth/email-already-in-use': '❌ Ye email already registered hai',
+        'auth/invalid-email':        '❌ Valid email daalo',
+        'auth/too-many-requests':    '❌ Bahut zyada attempts — thodi der baad try karo',
+        'auth/network-request-failed': '❌ Internet nahi hai',
+      };
+      errEl.textContent = msgs[err.code] || ('❌ ' + err.message);
+    });
+}
+
+// Enter key = login
+document.getElementById('lPassword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doAuth();
+});
+document.getElementById('lEmail').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doAuth();
+});
+
+// ── Forgot password ──────────────────────────────────────────
+function forgotPass() {
+  const email = document.getElementById('lEmail').value.trim();
+  if (!email) { document.getElementById('loginErr').textContent = '❌ Pehle email daalo!'; return; }
+  auth.sendPasswordResetEmail(email)
+    .then(() => { document.getElementById('loginErr').style.color='#2ecc71';
+                  document.getElementById('loginErr').textContent = '✅ Reset link bhej diya! Email check karo.'; })
+    .catch(e => { document.getElementById('loginErr').textContent = '❌ ' + e.message; });
+}
+
+// ── Logout ───────────────────────────────────────────────────
+function doLogout() {
+  if (!confirm('Logout karna chahte hain?')) return;
+  auth.signOut();
+}
+
+// ── Save to Cloud ────────────────────────────────────────────
+function saveData() {
+  // Local save hamesha
+  try { localStorage.setItem('mcq_questions', JSON.stringify(questions)); } catch(e){}
+
+  if (window.AndroidBridge) {
+    try { AndroidBridge.saveQuestions(JSON.stringify(questions)); } catch(e){}
+    return;
+  }
+
+  if (!currentUser) { console.warn('saveData: No user logged in'); return; }
+
+  db.collection('users').doc(currentUser.uid)
+    .collection('data').doc('questions')
+    .set({
+      questions:  JSON.stringify(questions),
+      updatedAt:  Date.now(),
+      ownerEmail: currentUser.email
+    }, { merge: true })
+    .then(() => console.log('✅ Questions saved to Firestore'))
+    .catch(e => {
+      console.error('❌ Firestore save error:', e.code, e.message);
+      showToast('⚠️ Cloud save fail: ' + e.code, 'red');
+    });
+}
+
+// ── Load from Cloud ───────────────────────────────────────────
+function loadFromCloud() {
+  if (!currentUser) { console.warn('loadFromCloud: no user'); return; }
+
+  if (window.AndroidBridge) {
+    try {
+      const d = AndroidBridge.loadQuestions();
+      if (d && d !== '[]' && d !== 'null' && d !== '') {
+        questions = JSON.parse(d); renderList();
+      }
+    } catch(e){}
+    return;
+  }
+
+  console.log('Loading from Firestore for uid:', currentUser.uid);
+  db.collection('users').doc(currentUser.uid)
+    .collection('data').doc('questions').get()
+    .then(doc => {
+      console.log('Firestore doc exists:', doc.exists);
+      if (doc.exists && doc.data() && doc.data().questions) {
+        try {
+          const cloudQ = JSON.parse(doc.data().questions);
+          questions = cloudQ;
+          renderList();
+          // Also sync chapters from cloud to localStorage
+          Object.entries(doc.data()).forEach(([key, val]) => {
+            if (key.startsWith('chap_')) {
+              try {
+                const all = JSON.parse(localStorage.getItem(CHAP_KEY) || '{}');
+                if (!all[key]) { all[key] = val; localStorage.setItem(CHAP_KEY, JSON.stringify(all)); }
+              } catch(e){}
+            }
+          });
+          showToast('☁️ Data load ho gaya!', 'green');
+        } catch(e) {
+          console.error('Parse error:', e);
+          loadFromLocalStorage();
+        }
+      } else {
+        console.log('No Firestore data — using localStorage');
+        loadFromLocalStorage();
+      }
+    })
+    .catch(e => {
+      console.error('Firestore load error:', e.code, e.message);
+      showToast('⚠️ Cloud load fail: ' + e.code, 'yellow');
+      loadFromLocalStorage();
+    });
+}
+
+function loadFromLocalStorage() {
+  const local = localStorage.getItem('mcq_questions');
+  if (local) {
+    try { questions = JSON.parse(local); renderList(); } catch(e){}
+  }
+}
+
+renderList();
+})(); // initFirebase end
+
+
+// ── Functions (global scope) ──
+// ── Auto Sync — focus pe aur har 30 second mein ─────────────
+function autoSync() {
+  if (!currentUser) return;
+  db.collection('users').doc(currentUser.uid)
+    .collection('data').doc('questions').get()
+    .then(doc => {
+      if (doc.exists && doc.data() && doc.data().questions) {
+        const cloud = doc.data().questions;
+        const local = JSON.stringify(questions);
+        if (cloud !== local) {
+          try {
+            const cloudQ = JSON.parse(cloud);
+            questions = cloudQ;
+            renderList();
+            showToast('☁️ Auto sync ho gaya!', 'green');
+          } catch(e) {}
+        }
+      }
+    }).catch(() => {});
+}
+
+// Har 10 second mein sync
+setInterval(autoSync, 10000);
+
+// Tab pe wapas aane par sync
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') autoSync();
+});
+
+// Window focus pe sync
+window.addEventListener('focus', autoSync);
+
+// ── Sync from Cloud (manual button) ──────────────────────────
+function syncFromCloud() {
+  if (!currentUser) { showToast('Login karo pehle!', 'red'); return; }
+  showToast('⏳ Syncing...', 'yellow');
+  db.collection('users').doc(currentUser.uid)
+    .collection('data').doc('questions').get()
+    .then(doc => {
+      if (doc.exists && doc.data().questions) {
+        questions = JSON.parse(doc.data().questions);
+        renderList();
+        showToast('☁️ Cloud se sync ho gaya!', 'green');
+      } else {
+        showToast('Cloud mein koi data nahi!', 'yellow');
+      }
+    })
+    .catch(() => showToast('Sync fail — internet check karo!', 'red'));
+}
+
+// Load on startup (also handled by onAuthStateChanged)
+renderList();
+
+
+
+</script>
+
+
+</body>
+</html>
