@@ -293,8 +293,7 @@ textarea:focus,input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 
 <!-- ══ USER BAR ══ -->
 <div id="userBar" style="display:none;position:fixed;top:0;right:0;left:0;background:#1c1a35;border-bottom:1px solid #2a2748;display:none;align-items:center;justify-content:space-between;padding:8px 16px;z-index:999;font-family:'Segoe UI',sans-serif;">
   <span id="userEmailLabel" style="color:#8b87b0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:50%;"></span>
-  <div style="display:flex;gap:8px;align-items:center;">
-    <span id="inactiveTimer" style="color:#f0a500;font-size:11px;font-weight:600;"></span>
+  <div class="user-actions" style="display:flex;gap:8px;align-items:center;">
     <button onclick="syncFromCloud()" style="background:#2a2748;border:none;color:#2ecc71;padding:5px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600;">☁️ Sync</button>
     <button onclick="doLogout()" style="background:#e74c3c;color:#fff;font-weight:700;padding:6px 14px;border-radius:8px;border:none;cursor:pointer;font-size:13px;">🚪 Logout</button>
   </div>
@@ -1142,7 +1141,6 @@ window.adminExport       = adminExport;
 window.adminExportChapter = adminExportChapter;
 window.adminDeleteUser   = adminDeleteUser;
 window.adminDeleteChapter = adminDeleteChapter;
-window.resetInactiveTimer = resetInactiveTimer;
 window.confirmChapter    = confirmChapter;
 window.completeChapter   = completeChapter;
 window.showChapterModal  = showChapterModal;
@@ -1173,54 +1171,7 @@ db   = firebase.firestore();
 
 // User bar already in HTML body
 
-// ── Auto Logout after 8 hours inactivity (was 5 min — badhaya gaya) ───────────────
-let inactiveSeconds = 0;
-const AUTO_LOGOUT_SEC = 300; // 5 minutes (5 * 60)
-let inactiveInterval = null;
 
-function resetInactiveTimer() {
-  inactiveSeconds = 0;
-}
-
-function startInactiveTimer() {
-  if (inactiveInterval) clearInterval(inactiveInterval);
-  inactiveSeconds = 0;
-  inactiveInterval = setInterval(() => {
-    if (!currentUser) { clearInterval(inactiveInterval); return; }
-    inactiveSeconds++;
-    const remaining = AUTO_LOGOUT_SEC - inactiveSeconds;
-    const timerEl = document.getElementById('inactiveTimer');
-    if (timerEl) {
-      const m = Math.floor(remaining/60);
-      const s = remaining % 60;
-      timerEl.textContent = `⏱ ${m}:${s.toString().padStart(2,'0')}`;
-      timerEl.style.color = remaining <= 60 ? '#e74c3c' : remaining <= 120 ? '#f0a500' : '#8b87b0';
-    }
-    if (inactiveSeconds >= AUTO_LOGOUT_SEC) {
-      clearInterval(inactiveInterval);
-      if (questions.length && currentUser) {
-        showToast('💾 Auto logout — questions save ho rahe hain...', 'yellow');
-        saveChapterToCloud(questions, currentChapter || 'Auto-saved', 'autologout')
-          .then(() => setTimeout(() => auth.signOut(), 1200))
-          .catch(()  => setTimeout(() => auth.signOut(), 1200));
-      } else {
-        showToast('⏱ 5 min se koi kaam nahi — auto logout!', 'yellow');
-        setTimeout(() => auth.signOut(), 2000);
-      }
-    }
-  }, 1000);
-}
-
-function stopInactiveTimer() {
-  if (inactiveInterval) clearInterval(inactiveInterval);
-  const timerEl = document.getElementById('inactiveTimer');
-  if (timerEl) timerEl.textContent = '';
-}
-
-// Reset timer on any user activity
-['click','keydown','mousemove','scroll','touchstart'].forEach(evt => {
-  document.addEventListener(evt, resetInactiveTimer, { passive: true });
-});
 
 
 // ── Auth State Observer ──────────────────────────────────────
@@ -1236,7 +1187,6 @@ auth.onAuthStateChanged(user => {
     document.body.style.paddingTop = '44px';
     loadFromCloud();
     checkAdminStatus(user.uid);
-    startInactiveTimer();
     if (!currentChapter) {
       setTimeout(() => showChapterModal(false), 400);
     }
@@ -1253,7 +1203,6 @@ auth.onAuthStateChanged(user => {
     // ──────────────────────────────────
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('userBar').style.display     = 'none';
-    stopInactiveTimer();
     const ab = document.getElementById('_adminBtn');
     if (ab) ab.remove();
   }
@@ -1276,10 +1225,14 @@ function checkAdminStatus(uid) {
           btn.style.fontWeight = '700';
           btn.onclick = openAdminPanel;
           userActions.insertBefore(btn, userActions.firstChild);
+        } else {
+          console.warn('Admin button add nahi hua — .user-actions element nahi mila!');
         }
       }
+    } else {
+      console.log('checkAdminStatus: isAdmin true nahi hai is user ke liye.', doc.exists ? doc.data() : 'doc nahi mila');
     }
-  });
+  }).catch(e => console.error('checkAdminStatus error:', e.code, e.message));
 }
 
 // ── Admin Panel (Web) ────────────────────────────────────────
